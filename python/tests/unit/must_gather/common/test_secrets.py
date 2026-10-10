@@ -28,13 +28,13 @@ def test_write_yaml_strips_data_and_last_applied_annotation(tmp_path):
             "namespace": "mas-inst1-core",
             "labels": {"app": "db"},
             "annotations": {
-                LAST_APPLIED_ANNOTATION: '{"data":{"password":"c2VjcmV0"}}',
+                LAST_APPLIED_ANNOTATION: '{"data":{"password":"c2VjcmV0"}}',  # pragma: allowlist secret
                 "owner": "team-a",
             },
         },
         "type": "Opaque",
-        "data": {"password": "c2VjcmV0"},
-        "stringData": {"password": "secret"},
+        "data": {"password": "c2VjcmV0"},  # pragma: allowlist secret
+        "stringData": {"password": "secret"},  # pragma: allowlist secret
     }
     outputFile = tmp_path / "db-creds.yaml"
 
@@ -59,7 +59,7 @@ def test_write_yaml_without_annotations(tmp_path):
     WHEN it is written by must-gather
     THEN the data is removed and the metadata is written unchanged
     """
-    secret = {"kind": "Secret", "metadata": {"name": "plain"}, "data": {"key": "dmFsdWU="}}
+    secret = {"kind": "Secret", "metadata": {"name": "plain"}, "data": {"key": "dmFsdWU="}}  # pragma: allowlist secret
     outputFile = tmp_path / "plain.yaml"
 
     _writeYaml(secret, str(outputFile))
