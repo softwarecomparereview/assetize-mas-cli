@@ -268,11 +268,13 @@ probably in `mas.devops`.
   with OpenSCAP scan → quay.io push → multi-arch manifest → PyPI on release),
   `docs.yml`, `pre-commit.yml`, `tekton-validation.yml`, `tekton-cleanup.yml`,
   `verify-cli-pr.yml`.
-- **On this fork most of `build-cli.yml` will fail**: it needs IBM secrets
-  (`IBM_CLOUD_APIKEY`, IBM Secrets Manager → Artifactory token, quay.io credentials,
-  PyPI token, IBM OCP cluster for tekton-cleanup). `pre-commit`, `tekton-validation`
-  and `verify-cli-pr` work without secrets. Docs build pulls data from upstream
-  `ibm-mas`.
+- `build-cli.yml` needs IBM secrets (`IBM_CLOUD_APIKEY`, IBM Secrets Manager → Artifactory
+  token, quay.io credentials, PyPI token), so **on this fork every job in it is gated with
+  `github.repository == 'ibm-mas/cli'`** and is skipped. That gating commit is fork-only: never
+  cherry-pick it upstream. The fork's image is built by `assetize-image.yml` instead (§12).
+  `pre-commit`, `tekton-validation`, `docs` and `verify-cli-pr` work without secrets
+  (`tekton-cleanup` needs IBM's OCP cluster but tolerates failure). Docs build pulls data
+  from upstream `ibm-mas`.
 
 ---
 
@@ -389,5 +391,5 @@ upstream-based branch.
   in separate directories so upstream merges stay conflict-free.
 - Upstream contributions: branch from upstream `master`, use `[patch]/[minor]` titles,
   no Assetize branding in upstream PRs, include tests, follow §10.
-- Before changing CI on the fork, decide whether to disable the IBM-secret jobs or
-  gate them with `if: github.repository == 'ibm-mas/cli'`.
+- IBM's `build-cli.yml` jobs are gated to `ibm-mas/cli` on this fork (fork-only commit, see §8);
+  re-apply the gating if an upstream merge overwrites it.
