@@ -255,6 +255,7 @@ class BaseApp(PrintMixin, PromptMixin):
         self.spinner: Dict[str, Any] = {"interval": 80, "frames": [" ⠋", " ⠙", " ⠹", " ⠸", " ⠼", " ⠴", " ⠦", " ⠧", " ⠇", " ⠏"]}
         self.successIcon: str = "✅️"
         self.failureIcon: str = "❌"
+        self.warningIcon: str = "⚠️"
 
         self._dynClient: DynamicClient | None = None
         self._apiClient: ApiClient | None = None
@@ -360,10 +361,11 @@ class BaseApp(PrintMixin, PromptMixin):
 
     @logMethodCall
     def getCompatibleVersions(self, coreChannel: str, appId: str) -> List[str]:
-        if coreChannel in self.compatibilityMatrix:
-            return self.compatibilityMatrix[coreChannel][appId]
-        else:
-            return []
+        """
+        Return the app channels compatible with the given core channel, or an empty list
+        if the core channel is unknown or the app is not available on that core channel.
+        """
+        return list(self.compatibilityMatrix.get(coreChannel, {}).get(appId, []))
 
     @logMethodCall
     def fatalError(self, message: str, exception: Exception | None = None) -> NoReturn:
