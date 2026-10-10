@@ -36,7 +36,12 @@ function mirror_everything() {
     MIRROR_MAS_CORE=true
 
     # Apps
-    MIRROR_MAS_ASSIST=true
+    # Maximo Assist is not available from MAS 9.2 onwards, only mirror it for earlier releases
+    if [[ "$MAS_CHANNEL" =~ ^(8\.[0-9]+|9\.0|9\.1)\.x ]]; then
+      MIRROR_MAS_ASSIST=true
+    else
+      MIRROR_MAS_ASSIST=false
+    fi
     MIRROR_MAS_IOT=true
     MIRROR_MAS_MANAGE=true
     MIRROR_MAS_ICD=true

@@ -123,7 +123,7 @@ Example modules:
 - **Resources** ([`common/resources.py`](common/resources.py)) - Generic resource collection with markdown generation
 - **Parallel** ([`common/parallel.py`](common/parallel.py)) - Parallel resource collection with progress tracking
 - **Pods** ([`common/pods.py`](common/pods.py)) - Pod collection with logs
-- **Secrets** ([`common/secrets.py`](common/secrets.py)) - Secret collection (with optional data)
+- **Secrets** ([`common/secrets.py`](common/secrets.py)) - Secret collection (metadata only, `data` is always removed)
 - **Reconcile Logs** ([`common/reconcile_logs.py`](common/reconcile_logs.py)) - Operator reconcile logs from pods
 
 #### IBM Resources
@@ -175,8 +175,8 @@ mas must-gather --collectors mas
 # Skip pod logs
 mas must-gather --no-logs
 
-# Include secret data
-mas must-gather --secret-data
+# Write summaries as plain text (md, txt or both; default md)
+mas must-gather --summary-format txt
 
 # Keep temporary files
 mas must-gather --keep-files

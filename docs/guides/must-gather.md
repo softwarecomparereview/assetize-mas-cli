@@ -120,11 +120,14 @@ Collect data for all MAS instances, critical cluster resources, and most MAS dep
 uvx mas-cli must-gather -d /mnt/home/must-gather
 ```
 
-### Include Secret Data
-By default secret data is not included in the must-gather archive, only the existence of the secret is recorded and how many fields it contains. Adding the `--secret-data` flag will trigger the inclusion of the secret data as well.
+### Secret Data
+Secret data is never included in the must-gather archive. For each secret only its metadata (name, namespace, type, labels, annotations, etc) is recorded; the `data` field is always removed before the secret is written to disk, so the archive can be shared with IBM Support without exposing credentials. The `--secret-data` option provided by earlier versions of the must-gather is no longer supported.
+
+### Plain-Text Summaries
+By default the summary reports (`summaries/*.md` and `resources/_cluster/subscriptions.md`) are written as Markdown. Use `--summary-format txt` to write them as plain text instead (Markdown tables are converted to aligned text tables), or `--summary-format both` to write both, for support tools that cannot render Markdown.
 
 ```bash
-uvx mas-cli must-gather -d /mnt/home/must-gather --secret-data
+uvx mas-cli must-gather -d /mnt/home/must-gather --summary-format both
 ```
 
 ### Quick Collection
