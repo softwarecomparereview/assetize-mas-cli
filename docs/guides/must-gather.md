@@ -121,7 +121,7 @@ uvx mas-cli must-gather -d /mnt/home/must-gather
 ```
 
 ### Secret Data
-Secret data is never included in the must-gather archive. For each secret only its metadata (name, namespace, type, labels, annotations, etc) is recorded; the `data` field is always removed before the secret is written to disk, so the archive can be shared with IBM Support without exposing credentials. The `--secret-data` option provided by earlier versions of the must-gather is no longer supported.
+Secret values are not included in the must-gather archive. For each secret only its metadata (name, namespace, type, labels, annotations, etc) is recorded: the `data` and `stringData` fields are always removed, as is the `kubectl.kubernetes.io/last-applied-configuration` annotation, which can contain a copy of the secret's data. Other annotations are kept as they are, so if your organisation stores sensitive values in custom secret annotations, review the collected `secrets` folders before sharing the archive. The `--secret-data` option provided by earlier versions of the must-gather is no longer supported.
 
 ### Plain-Text Summaries
 By default the summary reports (`summaries/*.md` and `resources/_cluster/subscriptions.md`) are written as Markdown. Use `--summary-format txt` to write them as plain text instead (Markdown tables are converted to aligned text tables), or `--summary-format both` to write both, for support tools that cannot render Markdown.

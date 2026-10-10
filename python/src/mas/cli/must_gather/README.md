@@ -123,7 +123,7 @@ Example modules:
 - **Resources** ([`common/resources.py`](common/resources.py)) - Generic resource collection with markdown generation
 - **Parallel** ([`common/parallel.py`](common/parallel.py)) - Parallel resource collection with progress tracking
 - **Pods** ([`common/pods.py`](common/pods.py)) - Pod collection with logs
-- **Secrets** ([`common/secrets.py`](common/secrets.py)) - Secret collection (metadata only, `data` is always removed)
+- **Secrets** ([`common/secrets.py`](common/secrets.py)) - Secret collection (metadata only; `data`, `stringData` and the `last-applied-configuration` annotation are always removed)
 - **Reconcile Logs** ([`common/reconcile_logs.py`](common/reconcile_logs.py)) - Operator reconcile logs from pods
 
 #### IBM Resources

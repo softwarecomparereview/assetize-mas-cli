@@ -30,14 +30,18 @@ function validate_cli_version() {
 
 
 
+# Maximo Assist is not available from MAS 9.2 onwards
+function assist_supported_for_channel() {
+  [[ "$MAS_CHANNEL" =~ ^(8\.[0-9]+|9\.0|9\.1)\.x ]]
+}
+
 function mirror_everything() {
     # Core
     MIRROR_CATALOG=true
     MIRROR_MAS_CORE=true
 
     # Apps
-    # Maximo Assist is not available from MAS 9.2 onwards, only mirror it for earlier releases
-    if [[ "$MAS_CHANNEL" =~ ^(8\.[0-9]+|9\.0|9\.1)\.x ]]; then
+    if assist_supported_for_channel; then
       MIRROR_MAS_ASSIST=true
     else
       MIRROR_MAS_ASSIST=false
@@ -312,7 +316,11 @@ function mirror_to_registry_interactive() {
 
     prompt_for_confirm_default_yes "IBM Maximo Application Suite - Core" MIRROR_MAS_CORE
 
-    prompt_for_confirm "IBM Maximo Application Suite - Assist" MIRROR_MAS_ASSIST
+    if assist_supported_for_channel; then
+      prompt_for_confirm "IBM Maximo Application Suite - Assist" MIRROR_MAS_ASSIST
+    else
+      MIRROR_MAS_ASSIST=false
+    fi
     prompt_for_confirm "IBM Maximo Application Suite - IoT" MIRROR_MAS_IOT
     prompt_for_confirm "IBM Maximo Application Suite - Manage" MIRROR_MAS_MANAGE
     if [[ "$MIRROR_MAS_MANAGE" == "true" ]]; then
@@ -437,6 +445,12 @@ function mirror_to_registry() {
     mirror_to_registry_noninteractive "$@"
   else
     mirror_to_registry_interactive
+  fi
+
+  # Applies to every selection path (--mirror-assist, --mirror-everything, interactive)
+  if [[ "$MIRROR_MAS_ASSIST" == "true" ]] && ! assist_supported_for_channel; then
+    echo_warning "Maximo Assist is not available in MAS $MAS_CHANNEL, it will not be mirrored"
+    MIRROR_MAS_ASSIST=false
   fi
 
   export MIRROR_COMMONSERVICES

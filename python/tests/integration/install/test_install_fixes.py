@@ -43,6 +43,7 @@ def createMockApp(params=None):
     app.params = dict(params or {})
     app.setParam = lambda key, value: app.params.__setitem__(key, value)
     app.getParam = lambda key: app.params.get(key, "")
+    app.buildDb2SharedArgs = lambda newline: InstallApp.buildDb2SharedArgs(app, newline)
     app.dynamicClient = MagicMock()
     return app
 
@@ -304,38 +305,47 @@ def test_config_storage_classes_offers_autodetected_when_both_present():
 # -----------------------------------------------------------------------------
 # buildCommand() de-duplication and Db2 storage flags
 # -----------------------------------------------------------------------------
-def test_build_command_no_duplicate_flags_and_reparses():
+@pytest.mark.parametrize("withManage", [True, False])
+def test_build_command_no_duplicate_flags_and_reparses(withManage):
     """
-    GIVEN an install of Manage (with persistent volumes) and AI Service, with in-cluster Db2 for both and custom Db2 storage settings
+    GIVEN an install of AI Service with in-cluster Db2 and custom Db2 storage settings, with or without Manage (and its own in-cluster Db2)
     WHEN the non-interactive command is built
-    THEN each flag appears once, --configure-ai-assistant is spelled correctly and the command re-parses
+    THEN each flag appears once, --configure-ai-assistant is spelled correctly, the Db2 storage settings are kept and the command re-parses
     """
-    app = createMockApp(
-        {
-            "mas_catalog_version": "v9-261007-amd64",
-            "mas_channel": "9.1.x",
-            "mas_instance_id": "inst1",
-            "mas_workspace_id": "ws1",
-            "mas_workspace_name": "Workspace 1",
-            "storage_class_rwo": "rwo",
-            "storage_class_rwx": "rwx",
-            "sls_namespace": "ibm-sls",
-            "dro_contact_email": "a@b.com",
-            "dro_contact_firstname": "A",
-            "dro_contact_lastname": "B",
-            "mas_app_channel_manage": "9.1.x",
-            "mas_appws_bindings_jdbc_manage": "workspace-application",
-            "mas_appws_components": "base=latest",
-            "mas_app_settings_persistent_volumes_flag": "true",
-            "aiservice_channel": "9.1.x",
-            "configure_aiassistant": "pipeline",
-            "db2_action_manage": "install",
-            "db2_action_aiservice": "install",
-            "db2_channel": "v110509.0",
-            "db2_data_storage_class": "db2-data",
-            "db2_meta_storage_accessmode": "ReadWriteMany",
-        }
-    )
+    params = {
+        "mas_catalog_version": "v9-261007-amd64",
+        "mas_channel": "9.1.x",
+        "mas_instance_id": "inst1",
+        "mas_workspace_id": "ws1",
+        "mas_workspace_name": "Workspace 1",
+        "storage_class_rwo": "rwo",
+        "storage_class_rwx": "rwx",
+        "sls_namespace": "ibm-sls",
+        "dro_contact_email": "a@b.com",
+        "dro_contact_firstname": "A",
+        "dro_contact_lastname": "B",
+        "mas_app_channel_manage": "9.1.x",
+        "mas_appws_bindings_jdbc_manage": "workspace-application",
+        "mas_appws_components": "base=latest",
+        "mas_app_settings_persistent_volumes_flag": "true",
+        "aiservice_channel": "9.1.x",
+        "configure_aiassistant": "pipeline",
+        "db2_action_manage": "install",
+        "db2_action_aiservice": "install",
+        "db2_channel": "v110509.0",
+        "db2_data_storage_class": "db2-data",
+        "db2_meta_storage_accessmode": "ReadWriteMany",
+    }
+    if not withManage:
+        for key in [
+            "mas_app_channel_manage",
+            "mas_appws_bindings_jdbc_manage",
+            "mas_appws_components",
+            "mas_app_settings_persistent_volumes_flag",
+            "db2_action_manage",
+        ]:
+            params.pop(key)
+    app = createMockApp(params)
     for attr in [
         "localConfigDir",
         "manualCertsDir",
@@ -364,7 +374,7 @@ def test_build_command_no_duplicate_flags_and_reparses():
         "installArcgis",
     ]:
         setattr(app, flag, False)
-    app.installManage = True
+    app.installManage = withManage
     app.installAIService = True
 
     command = InstallApp.buildCommand(app)
@@ -379,6 +389,7 @@ def test_build_command_no_duplicate_flags_and_reparses():
     assert args.aiservice_channel == "9.1.x"
     assert args.db2_channel == "v110509.0"
     assert args.db2_license_file == "/tmp/db2.lic"
-    assert args.mas_app_settings_persistent_volumes_flag == "true"
+    if withManage:
+        assert args.mas_app_settings_persistent_volumes_flag == "true"
     assert args.db2_data_storage_class == "db2-data"
     assert args.db2_meta_storage_accessmode == "ReadWriteMany"
