@@ -4,6 +4,9 @@
 > **without re-reading the whole codebase**. Read this first; open source files only
 > for the specific area you are changing.
 >
+> **Rule:** this file, `CLAUDE.md` and any other AI-agent file are fork-only —
+> never add them to an upstream (`ibm-mas/*`) contribution. See §12.
+>
 > Snapshot: written against upstream commit `af88cb2` (2026-10-09, latest catalog
 > `v9-261007`). Verify anything version-specific before relying on it.
 
@@ -323,6 +326,16 @@ podman run -ti --rm -e IBM_ENTITLEMENT_KEY quay.io/ibmmas/cli:latest bash
 ---
 
 ## 12. Working on this fork (Assetize notes)
+
+> **HARD RULE — never contribute AI-agent files upstream.**
+> Never include our own AI-agent / assistant files in any commit, branch or PR
+> targeting `ibm-mas/*` (or any other upstream). This covers, at minimum:
+> `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.cursor*`, `.github/copilot-instructions.md`,
+> `.windsurf*`, `.aider*`, `GEMINI.md`, and any other agent prompt, rule, skill,
+> memory or plan file we add. They are fork-only. Before opening an upstream PR,
+> check `git diff --name-only upstream/master...HEAD` and drop any such file.
+> (Upstream's own `.bob/` directory is theirs — leave it untouched unless the
+> upstream change genuinely requires it.)
 
 - Keep `master` a clean mirror of upstream; put Assetize-specific work on branches or
   in separate directories so upstream merges stay conflict-free.
