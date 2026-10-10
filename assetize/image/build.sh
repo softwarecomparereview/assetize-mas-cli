@@ -62,6 +62,7 @@ for repo in cli python-devops ansible-devops; do
   rm -rf "${STAGE_DIR:?}/$repo" && mkdir -p "$STAGE_DIR/$repo"
   git -C "$src" archive HEAD | tar -x -C "$STAGE_DIR/$repo"
 done
+rm -rf "${STAGE_DIR:?}"/dist-* "$STAGE_DIR"/mas_cli.contents
 S="$STAGE_DIR/cli"
 INSTALL_DIR="$S/image/cli/install"
 
