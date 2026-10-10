@@ -33,6 +33,24 @@ from ..rbac_utils import evaluatePreinstallRBACAccess
 logger = logging.getLogger(__name__)
 
 
+def parseVersionTuple(version) -> tuple | None:
+    """
+    Convert a version string such as "8.0.12", "v7.0" or "6.0.5-ent" into a tuple of integers for numeric comparison.
+
+    Any leading "v" and any suffix following the numeric dotted portion (e.g. "-ent", "+build") are ignored, and the
+    result is padded with zeros to at least three components so that "7.0" and "7.0.0" compare as equal.
+    Returns None if the string does not start with a numeric version.
+    """
+    if version is None:
+        return None
+    match = re.match(r"^\s*v?(\d+(?:\.\d+)*)", str(version))
+    if not match:
+        return None
+    parts = [int(part) for part in match.group(1).split(".")]
+    parts.extend([0] * (3 - len(parts)))
+    return tuple(parts)
+
+
 class UpdateApp(BaseApp, AdditionalConfigsMixin):
 
     def shouldApplyRBACForInstance(self, instanceId, currentVersion, targetCatalog) -> bool:
@@ -171,6 +189,7 @@ class UpdateApp(BaseApp, AdditionalConfigsMixin):
             optionalParams = [
                 "db2_namespace",
                 "db2_v12_upgrade",
+                "db2u_kind",
                 "mongodb_namespace",
                 "mongodb_v5_upgrade",
                 "mongodb_v6_upgrade",
@@ -297,7 +316,11 @@ class UpdateApp(BaseApp, AdditionalConfigsMixin):
 
         self.printH2("Supported Dependency Updates")
         if self.getParam("db2_namespace") != "":
-            self.printSummary("IBM Db2", f"All Db2uCluster and Db2uInstance instances in {self.getParam('db2_namespace')}")
+            db2Kinds = {"db2ucluster": "Db2uCluster", "db2uinstance": "Db2uInstance"}
+            if self.getParam("db2u_kind") in db2Kinds:
+                self.printSummary("IBM Db2", f"All {db2Kinds[self.getParam('db2u_kind')]} instances in {self.getParam('db2_namespace')}")
+            else:
+                self.printSummary("IBM Db2", f"All Db2uCluster and Db2uInstance instances in {self.getParam('db2_namespace')}")
         else:
             self.printSummary("IBM Db2", "No action required")
 
@@ -413,17 +436,34 @@ class UpdateApp(BaseApp, AdditionalConfigsMixin):
         return self.reviewInstances(listMasInstances, "MAS", "Suite.core.mas.ibm.com/v1")
 
     def reviewAiServiceInstance(self) -> bool:
-        return self.reviewInstances(listAiServiceInstances, "AI Service", "AIServiceApp.aiservice.ibm.com/v1", "aiservice_instance_ids")
+        # AI Service instances that have never reconciled (e.g. a failed initial install) are skipped with a warning rather than
+        # blocking the catalog update for the whole cluster (https://github.com/ibm-mas/cli/issues/1944)
+        return self.reviewInstances(listAiServiceInstances, "AI Service", "AIServiceApp.aiservice.ibm.com/v1", "aiservice_instance_ids", skipUnreconciled=True)
 
-    def reviewInstances(self, getInstances: Callable, name: str, kind: str, instanceParamKey: str = "") -> bool:
+    def reviewInstances(self, getInstances: Callable, name: str, kind: str, instanceParamKey: str = "", skipUnreconciled: bool = False) -> bool:
         self.printH1(f"Review {name} Instances")
         try:
             instances = getInstances(self.dynamicClient)
 
+            if skipUnreconciled:
+                reconciledInstances = []
+                for instance in instances:
+                    instanceId = instance.get("metadata", {}).get("name", "<unknown>")
+                    status = instance.get("status") or {}
+                    versions = status.get("versions") or {}
+                    if versions.get("reconciled"):
+                        reconciledInstances.append(instance)
+                    else:
+                        self.printWarning(
+                            f"{name} instance '{instanceId}' has not reconciled (missing status.versions.reconciled) and will be skipped by this update. "
+                            f"Resolve the health of this instance and re-run the update to include it"
+                        )
+                instances = reconciledInstances
+
             if len(instances) == 0:
                 if instanceParamKey != "":
                     self.setParam(instanceParamKey, "")
-                self.printDescription([f"No {name} instances were detected on the cluster"])
+                self.printDescription([f"No {name} instances {'eligible for update ' if skipUnreconciled else ''}were detected on the cluster"])
                 return False
 
             if instanceParamKey != "":
@@ -613,10 +653,34 @@ class UpdateApp(BaseApp, AdditionalConfigsMixin):
                     self.setParam("mongodb_namespace", mongoNamespace)
                     self.setParam("mongodb_version", targetMongoVersion)
 
-                    targetMongoVersionMajor = targetMongoVersion.split(".")[0]
-                    currentMongoVersionMajor = currentMongoVersion.split(".")[0]
+                    targetMongoVersionTuple = parseVersionTuple(targetMongoVersion)
+                    currentMongoVersionTuple = parseVersionTuple(currentMongoVersion)
+                    if targetMongoVersionTuple is None or currentMongoVersionTuple is None:
+                        h.stop_and_persist(
+                            symbol=self.failureIcon, text=f"Unable to compare MongoDb CE versions {currentMongoVersion} and {targetMongoVersion}"
+                        )
+                        self.fatalError(
+                            f"Unable to parse MongoDb CE versions (current: '{currentMongoVersion}', target: '{targetMongoVersion}') to determine the update path"
+                        )
 
-                    if targetMongoVersionMajor > currentMongoVersionMajor:
+                    targetMongoVersionMajor = targetMongoVersionTuple[0]
+                    currentMongoVersionMajor = currentMongoVersionTuple[0]
+
+                    if targetMongoVersionMajor - currentMongoVersionMajor > 1:
+                        # MongoDb major versions must be upgraded one at a time (e.g. 5 -> 6 -> 7), the mongodb role in ibm.mas_devops
+                        # asserts that the target version is in mongo_compatible_target_version[existing_version] and will fail otherwise
+                        requiredMongoVersionMajor = currentMongoVersionMajor + 1
+                        h.stop_and_persist(symbol=self.failureIcon, text=f"MongoDb CE {currentMongoVersion} cannot be updated directly to {targetMongoVersion}")
+                        self.fatalError(
+                            f"Existing MongoDB Community Edition installation at version {currentMongoVersion} cannot be directly updated to version {targetMongoVersion} "
+                            f"(catalog {self.getParam('mas_catalog_version')}). MongoDB major versions must be upgraded one at a time "
+                            f"(v{currentMongoVersionMajor} -> v{requiredMongoVersionMajor}"
+                            f"{''.join(f' -> v{m}' for m in range(requiredMongoVersionMajor + 1, targetMongoVersionMajor + 1))}). "
+                            f"First run 'mas update' with an intermediate catalog that provides MongoDB v{requiredMongoVersionMajor} "
+                            f"(using '--mongodb-v{requiredMongoVersionMajor}-upgrade'), then update to {self.getParam('mas_catalog_version')}. "
+                            "Refer to https://ibm-mas.github.io/cli/catalogs/ for the MongoDB version included in each catalog"
+                        )
+                    elif targetMongoVersionMajor > currentMongoVersionMajor:
                         self.setParam("mongodb_action", "install")
                         # Let users know that Mongo will be upgraded if existing MongoDb major.minor version
                         # is lower than the target major version
@@ -641,7 +705,7 @@ class UpdateApp(BaseApp, AdditionalConfigsMixin):
                         else:
                             h.stop_and_persist(symbol=self.successIcon, text=f"MongoDb CE will be updated from {currentMongoVersion} to {targetMongoVersion}")
                             self.showMongoDependencyUpdateNotice(currentMongoVersion, targetMongoVersion)
-                    elif targetMongoVersion < currentMongoVersion:
+                    elif targetMongoVersionTuple < currentMongoVersionTuple:
                         h.stop_and_persist(symbol=self.failureIcon, text=f"MongoDb CE {currentMongoVersion} cannot be downgraded to {targetMongoVersion}")
                         self.showMongoDependencyUpdateNotice(currentMongoVersion, targetMongoVersion)
                         self.fatalError(
@@ -848,10 +912,13 @@ class UpdateApp(BaseApp, AdditionalConfigsMixin):
         with Halo(text=haloStartingMessage, spinner=self.spinner) as h:
             try:
                 instances = []
+                instanceKinds = []
                 for kind in kinds:
                     k8sAPI = self.dynamicClient.resources.get(api_version=apiVersion, kind=kind)
-                    instances.extend(k8sAPI.get().to_dict()["items"])
-                    logger.debug(f"Found {len(instances)} {kind} instances on the cluster")
+                    kindInstances = k8sAPI.get().to_dict()["items"]
+                    instances.extend(kindInstances)
+                    instanceKinds.extend([kind] * len(kindInstances))
+                    logger.debug(f"Found {len(kindInstances)} {kind} instances on the cluster")
 
                 kindString = "/".join([kind + "s" for kind in kinds])
                 if len(instances) > 0:
@@ -892,6 +959,10 @@ class UpdateApp(BaseApp, AdditionalConfigsMixin):
                             for index, ns in enumerate(sorted(namespaces), start=1):
                                 self.printDescription([f"{index}. {ns}"])
                             self.promptForListSelect("Select namespace", sorted(namespaces), paramName)
+
+                    # Determine the Db2u custom resource kind in use in the target namespace so that the db2 role does not fail
+                    # with "DB2U_KIND MISMATCH" when updating Db2uInstance deployments (https://github.com/ibm-mas/cli/issues/2579)
+                    self.setDb2uKind(instances, instanceKinds)
 
                     # Version comparison logic - check if Db2u needs major version upgrade
                     if len(instances) > 0:
@@ -1007,6 +1078,32 @@ class UpdateApp(BaseApp, AdditionalConfigsMixin):
                 kindString = ", ".join(kinds)
                 logger.debug(f"{'[' + kindString + ']'}.{apiVersion} is not available in the cluster")
                 h.stop_and_persist(symbol=self.successIcon, text=f"{kindString}.{apiVersion} is not available in the cluster")
+
+    def setDb2uKind(self, instances: list, instanceKinds: list) -> None:
+        """
+        Set the db2u_kind parameter based on the Db2u resources found in the target Db2 namespace.
+
+        The ibm.mas_devops db2 role defaults DB2U_KIND to db2ucluster and asserts that it matches the existing deployment,
+        detecting the existing deployment as db2ucluster if any Db2uCluster exists in the namespace, otherwise db2uinstance.
+        We mirror that logic here. An explicit --db2u-kind always takes precedence.
+        """
+        if self.getParam("db2u_kind") != "":
+            logger.debug(f"db2u_kind explicitly set to {self.getParam('db2u_kind')}, skipping detection")
+            return
+
+        targetNamespace = self.getParam("db2_namespace")
+        kindsInNamespace = set()
+        for instance, kind in zip(instances, instanceKinds):
+            if not isinstance(instance, dict):
+                continue
+            if targetNamespace == "" or instance.get("metadata", {}).get("namespace") == targetNamespace:
+                kindsInNamespace.add(kind)
+
+        if "Db2uCluster" in kindsInNamespace:
+            self.setParam("db2u_kind", "db2ucluster")
+        elif "Db2uInstance" in kindsInNamespace:
+            self.setParam("db2u_kind", "db2uinstance")
+        logger.debug(f"Db2u kinds found in namespace '{targetNamespace}': {kindsInNamespace} => db2u_kind='{self.getParam('db2u_kind')}'")
 
     def detectKafka(self) -> None:
         """Detect Kafka instances to update and determine the provider."""

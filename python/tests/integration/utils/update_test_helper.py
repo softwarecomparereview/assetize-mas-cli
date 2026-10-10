@@ -41,6 +41,8 @@ class UpdateTestConfig:
         aiservice_instances: Optional[List[Dict]] = None,
         mongodb_namespaces: Optional[List[str]] = None,
         mongodb_namespace_arg: Optional[str] = None,
+        mongodb_current_version: str = "6.0.5",
+        mongodb_target_version: str = "6.0.5",
         ocp_version: str = "4.18.0",
         timeout_seconds: int = 30,
         expect_system_exit: bool = False,
@@ -68,6 +70,8 @@ class UpdateTestConfig:
             aiservice_instances: List of AI Service instance dicts
             mongodb_namespaces: List of namespaces containing MongoDB resources
             mongodb_namespace_arg: Value for --mongodb-namespace CLI argument
+            mongodb_current_version: Version reported in the status of the existing MongoDBCommunity resources
+            mongodb_target_version: MongoDb version provided by the target catalog (mongo_extras_version_default)
             ocp_version: OpenShift version
             timeout_seconds: Timeout for watchdog (default 30s)
             expect_system_exit: Whether to expect SystemExit to be raised
@@ -91,6 +95,8 @@ class UpdateTestConfig:
         self.aiservice_instances = aiservice_instances if aiservice_instances is not None else []
         self.mongodb_namespaces = mongodb_namespaces if mongodb_namespaces is not None else []
         self.mongodb_namespace_arg = mongodb_namespace_arg
+        self.mongodb_current_version = mongodb_current_version
+        self.mongodb_target_version = mongodb_target_version
         self.ocp_version = ocp_version
         self.timeout_seconds = timeout_seconds
         self.expect_system_exit = expect_system_exit
@@ -117,6 +123,7 @@ class UpdateTestHelper:
         self.watchdog_thread = None
         self.prompt_tracker = None
         self.app = None
+        self.mocks = {}
 
     def setup_test_files(self):
         """Create test files in tmpdir."""
@@ -162,8 +169,8 @@ class UpdateTestHelper:
         """Create a mock MongoDB resource."""
         return {
             "metadata": {"name": name, "namespace": namespace},
-            "spec": {"members": 3, "type": "ReplicaSet", "version": "6.0.5"},
-            "status": {"version": "6.0.5", "phase": "Running"},
+            "spec": {"members": 3, "type": "ReplicaSet", "version": self.config.mongodb_current_version},
+            "status": {"version": self.config.mongodb_current_version, "phase": "Running"},
         }
 
     def create_pod_resource(self, name: str, namespace: str) -> Dict:
@@ -432,6 +439,7 @@ class UpdateTestHelper:
                 mocks = {}
                 for name, patch in patches:
                     mocks[name] = stack.enter_context(patch)
+                self.mocks = mocks
 
                 # Configure mock return values
                 mocks["dynamic_client_class"].return_value = dynamic_client
@@ -457,7 +465,7 @@ class UpdateTestHelper:
                 # Catalog info
                 mocks["get_catalog"].return_value = {
                     "ocp_compatibility": ["4.16", "4.17", "4.18"],
-                    "mongo_extras_version_default": "6.0.5",
+                    "mongo_extras_version_default": self.config.mongodb_target_version,
                     "cpd_product_version_default": "5.2.0",
                     "db2_channel_default": self.config.db2u_target_version,
                 }
