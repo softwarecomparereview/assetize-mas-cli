@@ -1,6 +1,6 @@
 ## Overview
 
-Very cut back version of continuous integration build system for IBM Maximo Application Suite, based on Travis CI, utilizing automated semantic versioning of releases.
+Very cut back version of continuous integration build system for IBM Maximo Application Suite, based on GitHub Actions (see `.github/workflows/build-cli.yml`), utilizing automated semantic versioning of releases.
 
 ## Concepts
 
@@ -13,7 +13,7 @@ Versioning is controlled by the GitHub commit messages:
 - A commit comment of `[minor] Add the new feature` will result in a version change from `1.0.0` to `1.1.0`
 - A commit comment of `[major] Rewrite the thing` will result in a version change from `1.0.0` to `2.0.0`
 - A commit comment without any of the above will result in build with no new release being published
-- A commit comment of `[skip ci] Something not worth a new build` will result in Travis not even running
+- A commit comment of `[skip ci] Something not worth a new build` will result in the GitHub Actions build workflows not even running
 
 When a build contains multiple commits the most significant commit "wins".
 

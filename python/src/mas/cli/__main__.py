@@ -45,11 +45,14 @@ def usage() -> None:
             + " - <ForestGreen>mas-cli update</ForestGreen>    Apply updates and security fixes\n"
             + " - <ForestGreen>mas-cli upgrade</ForestGreen>   Upgrade to a new MAS release\n"
             + " - <ForestGreen>mas-cli backup</ForestGreen>    Backup a MAS instance\n"
+            + " - <ForestGreen>mas-cli restore</ForestGreen>   Restore a MAS instance from a backup\n"
             + " - <ForestGreen>mas-cli uninstall</ForestGreen> Remove MAS from the cluster\n"
             + " - <ForestGreen>mas-cli mirror</ForestGreen>    Mirror container images\n"
             + " - <ForestGreen>mas-cli must-gather</ForestGreen> Collect diagnostic information\n"
             + " - <ForestGreen>mas-cli setup-rbac</ForestGreen>  Set up RBAC resources for MAS installation\n"
             + " - <ForestGreen>mas-cli pre-install</ForestGreen>  Set up pre-install RBAC for MAS\n"
+            + " - <ForestGreen>mas-cli aiservice-install</ForestGreen> Install IBM Maximo AI Service\n"
+            + " - <ForestGreen>mas-cli aiservice-upgrade</ForestGreen> Upgrade IBM Maximo AI Service\n"
         )
     )
     print_formatted_text(HTML("For usage information run <ForestGreen>mas-cli [action] --help</ForestGreen>\n"))
