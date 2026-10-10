@@ -285,7 +285,7 @@ class installArgBuilderMixin:
         if self.installAIService:
             command += f"  --aiservice-channel \"{self.getParam('aiservice_channel')}\"{newline}"
             if self.getParam("configure_aiassistant") != "":
-                command += f"  --configure-aiassistant \"{self.getParam('configure_aiassistant')}\"{newline}"
+                command += f"  --configure-ai-assistant \"{self.getParam('configure_aiassistant')}\"{newline}"
 
         # Arcgis
         # -----------------------------------------------------------------------------
@@ -416,11 +416,14 @@ class installArgBuilderMixin:
                     command += f'  --facilities-{agent}-deploymentmode "{self.getParam(f"mas_ws_facilities_{agent}_deploymentmode")}"{newline}'
         # AI Service Advanced Settings
         # -----------------------------------------------------------------------------
+        db2InstallForMas = "install" in [
+            self.getParam("db2_action_system"),
+            self.getParam("db2_action_manage"),
+            self.getParam("db2_action_facilities"),
+        ]
         if self.installAIService:
             if self.getParam("aiservice_instance_id") != "":
                 command += f"  --aiservice-instance-id  \"{self.getParam('aiservice_instance_id')}\"{newline}"
-            if self.getParam("aiservice_channel") != "":
-                command += f"  --aiservice-channel \"{self.getParam('aiservice_channel')}\"{newline}"
 
             # Certificate Issuer for AI Service
             if self.getParam("aiservice_certificate_issuer") != "":
@@ -430,10 +433,14 @@ class installArgBuilderMixin:
             if self.getParam("db2_action_aiservice") == "install":
                 # In-cluster DB2 installation
                 command += f"  --db2-aiservice{newline}"
-                if self.getParam("db2_channel") != "":
+                # --db2-channel and --db2-license-file are emitted in the Db2 section when any other Db2 instance is being installed
+                if not db2InstallForMas and self.getParam("db2_channel") != "":
                     command += f"  --db2-channel \"{self.getParam('db2_channel')}\"{newline}"
-                if self.db2LicenseFileLocal:
+                if not db2InstallForMas and self.db2LicenseFileLocal:
                     command += f'  --db2-license-file "{self.db2LicenseFileLocal}"{newline}'
+                # Shared Db2 settings (storage, resources, scheduling) are only emitted once, in the Db2 section, when it is present
+                if not db2InstallForMas:
+                    command += self.buildDb2SharedArgs(newline)
             elif self.getParam("aiservice_db_jdbc_url") != "":
                 # External database (Oracle/SQL Server/DB2)
                 command += f"  --aiservice-db-jdbc-url \"{self.getParam('aiservice_db_jdbc_url')}\"{newline}"
@@ -468,7 +475,8 @@ class installArgBuilderMixin:
             if self.getParam("rhoai") == "true":
                 command += f"  --rhoai{newline}"
 
-            if self.getParam("mas_app_settings_persistent_volumes_flag") == "true":
+            # --manage-persistent-volumes is already emitted in the Manage section when Manage is installed
+            if self.getParam("mas_app_settings_persistent_volumes_flag") == "true" and not self.installManage:
                 command += f"  --manage-persistent-volumes{newline}"
 
             if self.getParam("aiservice_watsonxai_apikey") != "":
@@ -544,54 +552,16 @@ class installArgBuilderMixin:
 
             if self.getParam("db2_channel") != "":
                 command += f"  --db2-channel \"{self.getParam('db2_channel')}\"{newline}"
-            if self.getParam("db2_namespace") != "":
-                command += f"  --db2-namespace \"{self.getParam('db2_namespace')}\"{newline}"
-
-            if self.getParam("db2_type") != "":
-                command += f"  --db2-type \"{self.getParam('db2_type')}\"{newline}"
             if self.getParam("db2_action_system") == "install" or self.getParam("db2_action_manage") == "install":
                 if self.getParam("db2_timezone") != "":
                     command += f"  --db2-timezone \"{self.getParam('db2_timezone')}\"{newline}"
             if self.getParam("db2_action_facilities") == "install":
                 if self.getParam("db2_facilities_timezone") != "":
                     command += f"  --db2-facilities-timezone \"{self.getParam('db2_facilities_timezone')}\"{newline}"
-            if self.db2LicenseFileLocal != "":
+            if self.db2LicenseFileLocal:
                 command += f'  --db2-license-file "{self.db2LicenseFileLocal}"{newline}'
 
-            if self.getParam("db2_affinity_key") != "":
-                command += f"  --db2-affinity-key \"{self.getParam('db2_affinity_key')}\"{newline}"
-            if self.getParam("db2_affinity_value") != "":
-                command += f"  --db2-affinity-value \"{self.getParam('db2_affinity_value')}\"{newline}"
-
-            if self.getParam("db2_tolerate_key") != "":
-                command += f"  --db2-tolerate-key \"{self.getParam('db2_tolerate_key')}\"{newline}"
-            if self.getParam("db2_tolerate_value") != "":
-                command += f"  --db2-tolerate-value \"{self.getParam('db2_tolerate_value')}\"{newline}"
-            if self.getParam("db2_tolerate_effect") != "":
-                command += f"  --db2-tolerate-effect \"{self.getParam('db2_tolerate_effect')}\"{newline}"
-
-            if self.getParam("db2_cpu_requests") != "":
-                command += f"  --db2-cpu-requests \"{self.getParam('db2_cpu_requests')}\"{newline}"
-            if self.getParam("db2_cpu_limits") != "":
-                command += f"  --db2-cpu-limits \"{self.getParam('db2_cpu_limits')}\"{newline}"
-
-            if self.getParam("db2_memory_requests") != "":
-                command += f"  --db2-memory-requests \"{self.getParam('db2_memory_requests')}\"{newline}"
-            if self.getParam("db2_memory_limits") != "":
-                command += f"  --db2-memory-limits \"{self.getParam('db2_memory_limits')}\"{newline}"
-
-            if self.getParam("db2_backup_storage_size") != "":
-                command += f"  --db2-backup-storage \"{self.getParam('db2_backup_storage_size')}\"{newline}"
-            if self.getParam("db2_data_storage_size") != "":
-                command += f"  --db2-data-storage \"{self.getParam('db2_data_storage_size')}\"{newline}"
-            if self.getParam("db2_logs_storage_size") != "":
-                command += f"  --db2-logs-storage \"{self.getParam('db2_logs_storage_size')}\"{newline}"
-            if self.getParam("db2_meta_storage_size") != "":
-                command += f"  --db2-meta-storage \"{self.getParam('db2_meta_storage_size')}\"{newline}"
-            if self.getParam("db2_temp_storage_size") != "":
-                command += f"  --db2-temp-storage \"{self.getParam('db2_temp_storage_size')}\"{newline}"
-            if self.getParam("db2u_kind") != "":
-                command += f"  --db2u-kind \"{self.getParam('db2u_kind')}\"{newline}"
+            command += self.buildDb2SharedArgs(newline)
 
         # Kafka - Common
         # -----------------------------------------------------------------------------
@@ -707,4 +677,52 @@ class installArgBuilderMixin:
                 command += f"  --use-cli-digest{newline}"
 
         command += "  --accept-license --no-confirm"
+        return command
+
+    def buildDb2SharedArgs(self, newline: str) -> str:
+        """Build the Db2 arguments shared by every in-cluster Db2 instance (system, manage, facilities, aiservice)."""
+        command = ""
+        if self.getParam("db2_namespace") != "":
+            command += f"  --db2-namespace \"{self.getParam('db2_namespace')}\"{newline}"
+        if self.getParam("db2_type") != "":
+            command += f"  --db2-type \"{self.getParam('db2_type')}\"{newline}"
+        if self.getParam("db2_affinity_key") != "":
+            command += f"  --db2-affinity-key \"{self.getParam('db2_affinity_key')}\"{newline}"
+        if self.getParam("db2_affinity_value") != "":
+            command += f"  --db2-affinity-value \"{self.getParam('db2_affinity_value')}\"{newline}"
+
+        if self.getParam("db2_tolerate_key") != "":
+            command += f"  --db2-tolerate-key \"{self.getParam('db2_tolerate_key')}\"{newline}"
+        if self.getParam("db2_tolerate_value") != "":
+            command += f"  --db2-tolerate-value \"{self.getParam('db2_tolerate_value')}\"{newline}"
+        if self.getParam("db2_tolerate_effect") != "":
+            command += f"  --db2-tolerate-effect \"{self.getParam('db2_tolerate_effect')}\"{newline}"
+
+        if self.getParam("db2_cpu_requests") != "":
+            command += f"  --db2-cpu-requests \"{self.getParam('db2_cpu_requests')}\"{newline}"
+        if self.getParam("db2_cpu_limits") != "":
+            command += f"  --db2-cpu-limits \"{self.getParam('db2_cpu_limits')}\"{newline}"
+
+        if self.getParam("db2_memory_requests") != "":
+            command += f"  --db2-memory-requests \"{self.getParam('db2_memory_requests')}\"{newline}"
+        if self.getParam("db2_memory_limits") != "":
+            command += f"  --db2-memory-limits \"{self.getParam('db2_memory_limits')}\"{newline}"
+
+        if self.getParam("db2_backup_storage_size") != "":
+            command += f"  --db2-backup-storage \"{self.getParam('db2_backup_storage_size')}\"{newline}"
+        if self.getParam("db2_data_storage_size") != "":
+            command += f"  --db2-data-storage \"{self.getParam('db2_data_storage_size')}\"{newline}"
+        if self.getParam("db2_logs_storage_size") != "":
+            command += f"  --db2-logs-storage \"{self.getParam('db2_logs_storage_size')}\"{newline}"
+        if self.getParam("db2_meta_storage_size") != "":
+            command += f"  --db2-meta-storage \"{self.getParam('db2_meta_storage_size')}\"{newline}"
+        if self.getParam("db2_temp_storage_size") != "":
+            command += f"  --db2-temp-storage \"{self.getParam('db2_temp_storage_size')}\"{newline}"
+        for db2Volume in ["meta", "data", "backup", "logs", "temp"]:
+            if self.getParam(f"db2_{db2Volume}_storage_class") != "":
+                command += f'  --db2-{db2Volume}-storage-class "{self.getParam(f"db2_{db2Volume}_storage_class")}"{newline}'
+            if self.getParam(f"db2_{db2Volume}_storage_accessmode") != "":
+                command += f'  --db2-{db2Volume}-storage-accessmode "{self.getParam(f"db2_{db2Volume}_storage_accessmode")}"{newline}'
+        if self.getParam("db2u_kind") != "":
+            command += f"  --db2u-kind \"{self.getParam('db2u_kind')}\"{newline}"
         return command

@@ -9,15 +9,17 @@ __version__ = "0.1.0"
 
 # Try to import from installed package first
 try:
-    from mas.devops.data import getCatalog, getOCPLifecycleData, getCatalogEditorial, NoSuchCatalogError
+    from mas.devops.data import getCatalog, getOCPLifecycleData, getCatalogEditorial, listCatalogTags, NoSuchCatalogError
 except ImportError:
     # Development fallback: add python-devops to path
     PYTHON_DEVOPS_PATH = Path(__file__).parent.parent.parent.parent / "python-devops" / "src"
     if PYTHON_DEVOPS_PATH.exists():
         sys.path.insert(0, str(PYTHON_DEVOPS_PATH))
-        from mas.devops.data import getCatalog, getOCPLifecycleData, getCatalogEditorial, NoSuchCatalogError
+        from mas.devops.data import getCatalog, getOCPLifecycleData, getCatalogEditorial, listCatalogTags, NoSuchCatalogError
     else:
         raise ImportError("Could not import mas.devops.data. " "Please install python-devops package or ensure it's available at ../python-devops/")
+
+from .matrices import loadCatalogs, renderOcpMatrix, renderVersionMatrix  # noqa: E402
 
 
 class MASCatalogsPlugin(BasePlugin):
@@ -32,6 +34,10 @@ class MASCatalogsPlugin(BasePlugin):
     - :::mas-catalog-whats-new - Renders the What's New section
     - :::mas-catalog-known-issues - Renders the Known Issues section
 
+    Cross-catalog directives (usable on any page, e.g. catalogs/index.md):
+    - :::mas-catalogs-version-matrix - MAS core/app versions per channel for every v9 amd64 catalog
+    - :::mas-catalogs-ocp-matrix - Catalogs and MAS channels supporting each OCP minor version
+
     The catalog tag is automatically detected from the page filename.
     For example, in v9-251127-amd64.md, the tag is v9-251127-amd64
     """
@@ -43,6 +49,20 @@ class MASCatalogsPlugin(BasePlugin):
         # e.g., "catalogs/v9-251127-amd64.md" -> "v9-251127-amd64"
         page_name = Path(page.file.src_path).stem
         catalog_tag = page_name
+
+        # Cross-catalog directives (page independent)
+        if ":::mas-catalogs-" in markdown:
+            linkFor = self._link_resolver(page, files)
+            markdown = re.sub(
+                r":::mas-catalogs-version-matrix",
+                lambda m: renderVersionMatrix(self._all_catalogs(), linkFor),
+                markdown,
+            )
+            markdown = re.sub(
+                r":::mas-catalogs-ocp-matrix",
+                lambda m: renderOcpMatrix(self._all_catalogs(), linkFor),
+                markdown,
+            )
 
         # Replace all directives
         markdown = re.sub(
@@ -77,6 +97,24 @@ class MASCatalogsPlugin(BasePlugin):
         )
 
         return markdown
+
+    def _all_catalogs(self):
+        """All v9 amd64 catalogs, newest first (loaded once per build)."""
+        if getattr(self, "_catalog_cache", None) is None:
+            self._catalog_cache = loadCatalogs(listCatalogTags, getCatalog, arch="amd64", prefix="v9-")
+        return self._catalog_cache
+
+    @staticmethod
+    def _link_resolver(page, files):
+        """Return a function mapping a catalog tag to a URL relative to ``page``, or None if the catalog has no page."""
+
+        def linkFor(tag):
+            catalogFile = files.get_file_from_path(f"catalogs/{tag}.md") if files is not None else None
+            if catalogFile is None:
+                return None
+            return catalogFile.url_relative_to(page.file)
+
+        return linkFor
 
     def _get_catalog_data(self, catalog_tag):
         """Get catalog data and handle errors."""
@@ -173,7 +211,7 @@ spec:
         # Build the table header
         table_html = """The Red Hat Extended Update Support Add-on Term 1 offering is included with the OCP subscription that comes with a MAS license. In the case of EUS denoted OCP releases, any support dates stated refer to the EUS1 end dates.
 
-For more details refer to the [OCP lifecycle policy](https://access.redhat.com/support/policy/updates/openshift).  Also note that non-EUS release support expires before the extended support for the previous EUS release, for example extended support for OCP 4.18 expires on Feb 25, 2027, while standard support for OCP 4.17 expires on April 1, 2026.
+For more details refer to the [OCP lifecycle policy](https://access.redhat.com/support/policy/updates/openshift).  Also note that non-EUS release support can expire before the extended support for the previous EUS release; refer to the table below for the dates that apply to each release.
 
 <table class="compatabilityMatrix">
   <tr>

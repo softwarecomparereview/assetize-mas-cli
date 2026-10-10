@@ -8,8 +8,13 @@
 #
 # *****************************************************************************
 
+import inspect
+import re
+from unittest import mock
+
 import pytest
 
+from mas.cli import __main__ as cliMain
 from mas.cli.install.app import InstallApp
 from mas.cli.update.app import UpdateApp
 from mas.cli.upgrade.app import UpgradeApp
@@ -65,3 +70,19 @@ def testUninstallHelp():
             app.uninstall(argv=["--help"])
         assert e.type == SystemExit
         assert e.value.code == 0
+
+
+def testMainUsageListsAllCommands():
+    """
+    GIVEN the mas-cli top-level usage message
+    WHEN usage() is called
+    THEN every command dispatched by main() is listed
+    """
+    with mock.patch.object(cliMain, "print_formatted_text") as mockPrint:
+        cliMain.usage()
+
+    output = "".join(str(getattr(call.args[0], "value", call.args[0])) for call in mockPrint.call_args_list if call.args)
+    dispatched = re.findall(r'function == "([a-z-]+)"', inspect.getsource(cliMain.main))
+    assert dispatched, "No commands found in main()"
+    for command in dispatched:
+        assert f"mas-cli {command}<" in output, f"usage() does not list '{command}'"

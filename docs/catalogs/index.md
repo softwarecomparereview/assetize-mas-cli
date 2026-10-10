@@ -57,6 +57,13 @@ For more details refer to the [OCP lifecycle policy](https://access.redhat.com/s
           <td style="font-style: italic">N/A</td>
         </tr>
         <tr>
+          <td><span style="font-weight: bold">v9-261007</span><br/><a href="v9-261007-amd64/">amd64</a> | <a href="v9-261007-s390x/">s390x</a> | <a href="v9-261007-ppc64le/">ppc64le</a></td>
+          <td><span style="font-weight: bold">4.18 - 4.22</span><br/><a href="https://access.redhat.com/support/policy/updates/openshift" target="_blank">EOS Aug 3, 2027 ↗</a></td>
+          <td>5.3.1</td>
+          <td>7.0 - 8.0</td>
+          <td>latest</td>
+        </tr>
+        <tr>
           <td><span style="font-weight: bold">v9-260924</span><br/><a href="v9-260924-amd64/">amd64</a> | <a href="v9-260924-s390x/">s390x</a> | <a href="v9-260924-ppc64le/">ppc64le</a></td>
           <td><span style="font-weight: bold">4.18 - 4.22</span><br/><a href="https://access.redhat.com/support/policy/updates/openshift" target="_blank">EOS Aug 3, 2027 ↗</a></td>
           <td>5.3.1</td>
@@ -93,7 +100,7 @@ For more details refer to the [OCP lifecycle policy](https://access.redhat.com/s
         </tr>
         <tr>
           <td><span style="font-weight: bold">v9-260430</span><br/><a href="v9-260430-amd64/">amd64</a> | <a href="v9-260430-s390x/">s390x</a> | <a href="v9-260430-ppc64le/">ppc64le</a></td>
-          <td><span style="font-weight: bold">4.16 - 4.20</span><br/><a href="https://access.redhat.com/support/policy/updates/openshift" target="_blank">EOS Oct 21, 2027 ↗</a></td>
+          <td><span style="font-weight: bold">4.16 - 4.21</span><br/><a href="https://access.redhat.com/support/policy/updates/openshift" target="_blank">EOS Oct 21, 2027 ↗</a></td>
           <td>5.2.0</td>
           <td>7.0 - 8.0</td>
           <td>20.2.0</td>
@@ -503,6 +510,17 @@ For more details refer to the [OCP lifecycle policy](https://access.redhat.com/s
     </table>
   </div>
 </div>
+
+
+### MAS Versions by Catalog
+The table below lists, for every v9 catalog (newest first), the version of MAS Core and each application that the catalog installs in each MAS channel.  Use it to find the catalog that delivers a specific MAS release, or the latest release available for a channel.  A dash means the application is not available in that channel.  The table is generated from the catalog metadata for the amd64 catalogs; refer to the individual catalog pages for other architectures.
+
+:::mas-catalogs-version-matrix
+
+### OCP Compatibility Lookup
+The table below lists, for each Red Hat OpenShift Container Platform minor release (newest first), the v9 catalogs that are certified on it and the MAS channels available in those catalogs.  The table is generated from the catalog metadata for the amd64 catalogs; s390x and ppc64le catalogs can differ, refer to the individual catalog pages for details.
+
+:::mas-catalogs-ocp-matrix
 
 
 ### FAQ

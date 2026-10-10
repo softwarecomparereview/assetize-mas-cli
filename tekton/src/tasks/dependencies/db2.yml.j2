@@ -121,6 +121,13 @@ spec:
     - name: db2_temp_storage_class
       type: string
       default: ""
+    # Used by the db2 role for any storage class above that is not set
+    - name: db2_default_storage_class_rwo
+      type: string
+      default: ""
+    - name: db2_default_storage_class_rwx
+      type: string
+      default: ""
 
     # Db2 - Storage - Access Mode
     - name: db2_meta_storage_accessmode
@@ -297,6 +304,10 @@ spec:
         value: $(params.db2_logs_storage_class)
       - name: DB2_TEMP_STORAGE_CLASS
         value: $(params.db2_temp_storage_class)
+      - name: DB2_DEFAULT_STORAGE_CLASS_RWO
+        value: $(params.db2_default_storage_class_rwo)
+      - name: DB2_DEFAULT_STORAGE_CLASS_RWX
+        value: $(params.db2_default_storage_class_rwx)
 
       # Db2 - Storage - Access mode
       - name: DB2_META_STORAGE_ACCESSMODE
