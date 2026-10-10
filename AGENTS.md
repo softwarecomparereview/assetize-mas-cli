@@ -30,6 +30,10 @@
 | `ibm-mas/python-devops` | PyPI `mas-devops` (`mas.devops.*`) — k8s helpers, catalog data, Tekton launch logic, PipelineRun templates | Python dependency (`mas-devops >= 9.0.0`) |
 | `ibm-mas/cli` (this) | The user-facing CLI (Python `mas-cli` + bash `mas`), Tekton task/pipeline definitions, container image, docs, catalog manifests | — |
 
+Assetize forks (all use the same working branch name for cross-repo changes):
+`softwarecomparereview/assetize-mas-cli` (this), `softwarecomparereview/assetize-python-devops`,
+`paananiruddh/assetize-ansible-devops`. Each carries its own `AGENTS.md` and the pre-push guard.
+
 Other upstream repos referenced: `ibm-mas/cli-base` (base image), `ibm-mas/pre-install`
 (pre-install RBAC), `ibm-mas/image-set-configs` (oc-mirror configs), `ibm-mas/gitops`
 (ArgoCD ApplicationSets consumed by `mas gitops-*`).
@@ -338,7 +342,7 @@ podman run -ti --rm -e IBM_ENTITLEMENT_KEY quay.io/ibmmas/cli:latest bash
 >
 > **Enforced by a pre-push hook** — run once per clone:
 > `.assetize/install-hooks.sh`. It blocks any push to a remote whose URL is not
-> `github.com/softwarecomparereview/*` (override with `ASSETIZE_FORK_PATTERN`) if the
+> `github.com/softwarecomparereview/*` or `github.com/paananiruddh/assetize-*` (override with `ASSETIZE_FORK_PATTERN`) if the
 > pushed tree, or any commit being pushed, contains one of these paths. Never bypass
 > it with `--no-verify`. When adding a new agent-file type, add it to the pattern in
 > `.assetize/hooks/pre-push` as well as to the list above.

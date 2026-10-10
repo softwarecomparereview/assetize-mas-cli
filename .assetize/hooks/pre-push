@@ -9,7 +9,7 @@
 
 remote_name="$1"
 remote_url="$2"
-fork_pattern="${ASSETIZE_FORK_PATTERN:-github\.com[:/]softwarecomparereview/}"
+fork_pattern="${ASSETIZE_FORK_PATTERN:-github\.com[:/](softwarecomparereview/|paananiruddh/assetize-)}"
 
 if [[ "$remote_url" =~ $fork_pattern ]]; then
   exit 0
