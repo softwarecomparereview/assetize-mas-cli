@@ -80,6 +80,7 @@ mirroring, gitops and debug commands.
 | `rbac/install/` | Kustomize bundle of minimal RBAC for a non-cluster-admin install |
 | `build/` | Build scripts (versioning, image build, tekton build, docs, artifactory upload) |
 | `.github/` | Workflows, CODEOWNERS (`@ibm-mas/pr-review-team`), issue templates, `fetch-artifactory-token` action |
+| `.assetize/` | Fork-only Assetize tooling (git hooks). Never pushed upstream |
 | `.bob/` | Config for IBM's internal "Bob" AI assistant: rules, skills, dated plan files (useful coding conventions — see §10) |
 | `Makefile`, `pyproject.toml`, `pytest.ini`, `.flake8`, `.pre-commit-config.yaml`, `.secrets.baseline` | Tooling |
 
@@ -331,9 +332,16 @@ podman run -ti --rm -e IBM_ENTITLEMENT_KEY quay.io/ibmmas/cli:latest bash
 > Never include our own AI-agent / assistant files in any commit, branch or PR
 > targeting `ibm-mas/*` (or any other upstream). This covers, at minimum:
 > `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.cursor*`, `.github/copilot-instructions.md`,
-> `.windsurf*`, `.aider*`, `GEMINI.md`, and any other agent prompt, rule, skill,
-> memory or plan file we add. They are fork-only. Before opening an upstream PR,
-> check `git diff --name-only upstream/master...HEAD` and drop any such file.
+> `.windsurf*`, `.aider*`, `GEMINI.md`, `.assetize/`, and any other agent prompt,
+> rule, skill, memory or plan file we add. They are fork-only. Before opening an
+> upstream PR, check `git diff --name-only upstream/master...HEAD` and drop any such file.
+>
+> **Enforced by a pre-push hook** — run once per clone:
+> `.assetize/install-hooks.sh`. It blocks any push to a remote whose URL is not
+> `github.com/softwarecomparereview/*` (override with `ASSETIZE_FORK_PATTERN`) if the
+> pushed tree, or any commit being pushed, contains one of these paths. Never bypass
+> it with `--no-verify`. When adding a new agent-file type, add it to the pattern in
+> `.assetize/hooks/pre-push` as well as to the list above.
 > (Upstream's own `.bob/` directory is theirs — leave it untouched unless the
 > upstream change genuinely requires it.)
 
