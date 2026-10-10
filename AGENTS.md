@@ -317,16 +317,33 @@ podman run -ti --rm -e IBM_ENTITLEMENT_KEY quay.io/ibmmas/cli:latest bash
 
 ---
 
-## 11. Known issues found during review (candidates for upstream PRs)
+## 11. Fixes carried on this fork, and known open issues
 
-| Where | Issue |
-|---|---|
-| `python/src/mas/cli/install/app.py:3124` | `self.warningIcon` is never defined → `AttributeError` if enabling the Pipelines console plugin fails |
-| `python/src/mas/cli/install/app.py:3101-3103` | "installation failed" spinner uses `successIcon` |
-| `build/bin/build-cli.sh:16` | `chmod ug+x …/mascli/must-gather/*` — directory no longer exists; fails under `set -e` |
-| `python/src/mas/cli/__main__.py` `usage()` | omits `restore`, `aiservice-install`, `aiservice-upgrade` |
-| `build/README.md` | describes Travis; CI is GitHub Actions |
-| `python/tests` | no coverage for backup, restore, uninstall, setup-rbac, pre-install |
+Fixed on branch `andy/stoic-turing-8l9odu` across the three forks (same branch name in
+each). Every fix commit is free of AI-agent files, so it can be cherry-picked onto an
+upstream-based branch.
+
+| Area | Issue | Repos touched |
+|---|---|---|
+| update | Mongo versions compared as strings (`"8.0.12" < "8.0.4"`); reject >1 major jump (ibm-mas/cli#1282) | cli |
+| update | `db2u_kind` detected / `--db2u-kind` flag; role uses existing kind (ibm-mas/cli#2579) | cli, python-devops, ansible-devops |
+| update | Unreconciled AI Service instance skipped instead of crashing (ibm-mas/cli#1944) | cli, python-devops |
+| backup/restore | `--manage/facilities-db2-dbname` (ibm-mas/cli#2513); restore workspace ID so PVCs aren't `<inst>--…` (ibm-mas/cli#2547); first backup/restore tests | cli, python-devops, ansible-devops |
+| install | `--db2-*-storage-class/accessmode` end to end (ibm-mas/cli#1037); custom ClusterIssuer prompt (#1812); existing Mongo notice (#1907); `sync-install` reset (#1398); `getCompatibleVersions` guard (#2060); `buildCommand` flag spelling + duplicates (#2503); `warningIcon`/`failureIcon`; rwo/rwx `None` handling | cli, python-devops, ansible-devops |
+| storage detection | Only return classes that exist (ibm-mas/cli#1520); Rook-Ceph via provisioner (#2634) | python-devops |
+| mirror | Don't mirror Assist for 9.2+ (ibm-mas/cli#2578) | cli |
+| must-gather | `--summary-format md|txt|both` (ibm-mas/cli#2390); docs drop `--secret-data` (#2633) | cli |
+| docs | Generated catalog version matrix + OCP lookup (ibm-mas/cli#2625, #2626); index OCP range (#2612) | cli |
+| build | `usage()` lists all commands; `build-cli.sh` stale chmod; build README | cli |
+
+**Still open (found during this work, not fixed):**
+- python-devops `src/mas/devops/data/ocp.yaml`: several `extended_support` dates look like
+  EUS Term 2 (e.g. 4.18 = Feb 25 2028) while the docs call them EUS1. Verify against Red Hat.
+- `install/argBuilder.py`: `--eck` emitted without separator; MSK cidr az2/az3 reuse az1 value.
+- ansible `suite_app_restore/tasks/manage/restore-namespace.yml` §2.2: storage-class override
+  reads `manage_persistent_volumes` before `restore-pv.yml` sets it, so it is never applied.
+- `uninstall --force`, uninstall of CP4D/Db2 (ibm-mas/cli#1910, #1911, #1909) — cross-repo, large.
+- No tests for uninstall, setup-rbac, pre-install. Nothing above has been run on a live cluster.
 
 ---
 
