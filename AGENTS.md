@@ -370,6 +370,21 @@ upstream-based branch.
 > (Upstream's own `.bob/` directory is theirs — leave it untouched unless the
 > upstream change genuinely requires it.)
 
+### How Assetize uses the forks
+- **Assetize CLI image** — `assetize/image/build.sh` (fork-only) builds IBM's `image/cli/Dockerfile`
+  with this repo, `assetize-python-devops` and `assetize-ansible-devops` (sibling checkouts) dropped
+  into `image/cli/install/` as local packages, and rewrites every `quay.io/ibmmas/cli` reference
+  (Tekton task images, airgap digest lookup, in-cluster deployment template) to
+  `ghcr.io/softwarecomparereview/mas-cli`, so OpenShift Pipelines run our image and our role fixes.
+  `.github/workflows/assetize-image.yml` runs it on `master` / `andy/**` pushes and `assetize-*`
+  tags (sibling forks use the same branch name if it exists, else their default branch) and pushes
+  to GHCR (private package). Local run:
+  `PATH=$PWD/.venv/bin:$PATH assetize/image/build.sh` (needs docker + buildx, `build`, `ansible-core`;
+  set `EXTRA_CA_CERT=<pem>` behind TLS-intercepting proxies, `PUSH=true` to push).
+- **Catalog data feed and must-gather health report** live in the **private** repo
+  `softwarecomparereview/assetize-mas-tools` (Assetize service logic; never put them in these
+  public forks). They read this repo (`python/src/mas/cli`) and python-devops' `src/mas/devops/data`.
+
 - Keep `master` a clean mirror of upstream; put Assetize-specific work on branches or
   in separate directories so upstream merges stay conflict-free.
 - Upstream contributions: branch from upstream `master`, use `[patch]/[minor]` titles,

@@ -23,6 +23,9 @@
 #   PLATFORM            docker platform                  (default: linux/amd64)
 #   PUSH                "true" to push instead of loading into the local docker (default: false)
 #   STAGE_DIR           working directory                (default: a new temp directory)
+#   EXTRA_CA_CERT       PEM bundle to trust while installing packages during the image build, for
+#                       networks with TLS interception (corporate proxies). Used only inside the install
+#                       step and deleted with /tmp/install, so it is not left in the image.
 set -euo pipefail
 
 CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -104,6 +107,21 @@ cp "$STAGE_DIR"/dist-devops/mas_devops-*.tar.gz "$INSTALL_DIR/mas_devops.tar.gz"
 ansible-galaxy collection build "$STAGE_DIR/ansible-devops/ibm/mas_devops" --output-path "$STAGE_DIR/dist-ansible" --force > "$STAGE_DIR/build-ansible.log" 2>&1 \
   || { tail -30 "$STAGE_DIR/build-ansible.log"; exit 1; }
 cp "$STAGE_DIR"/dist-ansible/ibm-mas_devops-*.tar.gz "$INSTALL_DIR/ibm-mas_devops.tar.gz"
+
+if [[ -n "${EXTRA_CA_CERT:-}" ]]; then
+  cp "$EXTRA_CA_CERT" "$INSTALL_DIR/extra-ca.crt"
+  ca=/tmp/install/extra-ca.crt
+  "$PYTHON" - "$S/image/cli/Dockerfile" "$ca" <<'PYEOF'
+import sys
+path, ca = sys.argv[1], sys.argv[2]
+text = open(path).read()
+old = "    umask 0002 && \\\n"
+exports = f"PIP_CERT={ca} REQUESTS_CA_BUNDLE={ca} SSL_CERT_FILE={ca} GIT_SSL_CAINFO={ca} CURL_CA_BUNDLE={ca}"
+assert text.count(old) == 1, "install step not found in Dockerfile"
+open(path, "w").write(text.replace(old, f"    umask 0002 && export {exports} && \\\n"))
+PYEOF
+  grep -q "PIP_CERT=$ca" "$S/image/cli/Dockerfile" || { echo "Failed to add EXTRA_CA_CERT to the Dockerfile install step"; exit 1; }
+fi
 
 # The image build copies rbac/ from the build context (IBM CI copies it in the same way)
 rm -rf "$S/image/cli/rbac" && cp -r "$S/rbac" "$S/image/cli/rbac"
