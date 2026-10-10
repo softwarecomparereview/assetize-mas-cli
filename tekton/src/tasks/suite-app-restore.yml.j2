@@ -11,6 +11,11 @@ spec:
       type: string
       description: Instance ID
 
+    - name: mas_workspace_id
+      type: string
+      description: Workspace ID used to name the restored PVCs (empty derives it from the workspace CR in the backup)
+      default: ""
+
     - name: mas_app_id
       type: string
       description: Application ID (e.g., manage)
@@ -49,6 +54,9 @@ spec:
 
       - name: MAS_INSTANCE_ID
         value: $(params.mas_instance_id)
+
+      - name: MAS_WORKSPACE_ID
+        value: $(params.mas_workspace_id)
 
       - name: MAS_APP_ID
         value: $(params.mas_app_id)
