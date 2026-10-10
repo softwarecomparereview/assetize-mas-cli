@@ -285,7 +285,7 @@ class installArgBuilderMixin:
         if self.installAIService:
             command += f"  --aiservice-channel \"{self.getParam('aiservice_channel')}\"{newline}"
             if self.getParam("configure_aiassistant") != "":
-                command += f"  --configure-aiassistant \"{self.getParam('configure_aiassistant')}\"{newline}"
+                command += f"  --configure-ai-assistant \"{self.getParam('configure_aiassistant')}\"{newline}"
 
         # Arcgis
         # -----------------------------------------------------------------------------
@@ -416,11 +416,14 @@ class installArgBuilderMixin:
                     command += f'  --facilities-{agent}-deploymentmode "{self.getParam(f"mas_ws_facilities_{agent}_deploymentmode")}"{newline}'
         # AI Service Advanced Settings
         # -----------------------------------------------------------------------------
+        db2InstallForMas = "install" in [
+            self.getParam("db2_action_system"),
+            self.getParam("db2_action_manage"),
+            self.getParam("db2_action_facilities"),
+        ]
         if self.installAIService:
             if self.getParam("aiservice_instance_id") != "":
                 command += f"  --aiservice-instance-id  \"{self.getParam('aiservice_instance_id')}\"{newline}"
-            if self.getParam("aiservice_channel") != "":
-                command += f"  --aiservice-channel \"{self.getParam('aiservice_channel')}\"{newline}"
 
             # Certificate Issuer for AI Service
             if self.getParam("aiservice_certificate_issuer") != "":
@@ -430,9 +433,10 @@ class installArgBuilderMixin:
             if self.getParam("db2_action_aiservice") == "install":
                 # In-cluster DB2 installation
                 command += f"  --db2-aiservice{newline}"
-                if self.getParam("db2_channel") != "":
+                # --db2-channel and --db2-license-file are emitted in the Db2 section when any other Db2 instance is being installed
+                if not db2InstallForMas and self.getParam("db2_channel") != "":
                     command += f"  --db2-channel \"{self.getParam('db2_channel')}\"{newline}"
-                if self.db2LicenseFileLocal:
+                if not db2InstallForMas and self.db2LicenseFileLocal:
                     command += f'  --db2-license-file "{self.db2LicenseFileLocal}"{newline}'
             elif self.getParam("aiservice_db_jdbc_url") != "":
                 # External database (Oracle/SQL Server/DB2)
@@ -468,7 +472,8 @@ class installArgBuilderMixin:
             if self.getParam("rhoai") == "true":
                 command += f"  --rhoai{newline}"
 
-            if self.getParam("mas_app_settings_persistent_volumes_flag") == "true":
+            # --manage-persistent-volumes is already emitted in the Manage section when Manage is installed
+            if self.getParam("mas_app_settings_persistent_volumes_flag") == "true" and not self.installManage:
                 command += f"  --manage-persistent-volumes{newline}"
 
             if self.getParam("aiservice_watsonxai_apikey") != "":
@@ -555,7 +560,7 @@ class installArgBuilderMixin:
             if self.getParam("db2_action_facilities") == "install":
                 if self.getParam("db2_facilities_timezone") != "":
                     command += f"  --db2-facilities-timezone \"{self.getParam('db2_facilities_timezone')}\"{newline}"
-            if self.db2LicenseFileLocal != "":
+            if self.db2LicenseFileLocal:
                 command += f'  --db2-license-file "{self.db2LicenseFileLocal}"{newline}'
 
             if self.getParam("db2_affinity_key") != "":
@@ -590,6 +595,11 @@ class installArgBuilderMixin:
                 command += f"  --db2-meta-storage \"{self.getParam('db2_meta_storage_size')}\"{newline}"
             if self.getParam("db2_temp_storage_size") != "":
                 command += f"  --db2-temp-storage \"{self.getParam('db2_temp_storage_size')}\"{newline}"
+            for db2Volume in ["meta", "data", "backup", "logs", "temp"]:
+                if self.getParam(f"db2_{db2Volume}_storage_class") != "":
+                    command += f'  --db2-{db2Volume}-storage-class "{self.getParam(f"db2_{db2Volume}_storage_class")}"{newline}'
+                if self.getParam(f"db2_{db2Volume}_storage_accessmode") != "":
+                    command += f'  --db2-{db2Volume}-storage-accessmode "{self.getParam(f"db2_{db2Volume}_storage_accessmode")}"{newline}'
             if self.getParam("db2u_kind") != "":
                 command += f"  --db2u-kind \"{self.getParam('db2u_kind')}\"{newline}"
 

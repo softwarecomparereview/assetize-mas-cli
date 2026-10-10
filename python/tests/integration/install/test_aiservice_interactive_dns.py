@@ -20,6 +20,8 @@ Three scenarios are covered:
   3. MAS has no custom domain — AI Service is configured independently with CIS DNS.
 """
 
+import shlex
+from mas.cli.install.argParser import installArgParser
 from mas.cli.install.catalogs import supportedCatalogs
 from utils import InstallTestConfig, run_install_test
 
@@ -236,6 +238,8 @@ def test_install_interactive_aiservice_cis_dns_no_mas_domain(tmpdir):
             # Matches only the MAS DNS prompt — ends with "management?" not "management for AI Service?"
             r".*Configure domain.*certificate management\?.*": lambda msg: "y",
             ".*Configure custom domain.*": lambda msg: "n",
+            # No custom domain -> optional custom certificate issuer (blank = MAS default self-signed issuer)
+            ".*Custom certificate issuer name.*": lambda msg: "",
             # 18. AI Service DNS: MAS has no domain → full independent DNS flow
             ".*Configure.*domain.*certificate management for AI Service.*": lambda msg: "y",
             ".*AI Service domain.*": lambda msg: "aiservice.example.com",
@@ -256,3 +260,103 @@ def test_install_interactive_aiservice_cis_dns_no_mas_domain(tmpdir):
     assert app.getParam("mas_domain") == ""
     assert app.getParam("aiservice_domain") == "aiservice.example.com"
     assert app.getParam("aiservice_certificate_issuer") == f"{app.getParam('aiservice_instance_id')}-cis-le-prod"
+
+
+# ---------------------------------------------------------------------------
+# buildCommand() round-trip, custom certificate issuer and Db2 storage classes
+# ---------------------------------------------------------------------------
+
+
+def _parseBuiltCommand(command):
+    """Turn the output of buildCommand() back into argv and parse it with the install argParser."""
+    lines = [line for line in command.split("\n") if not line.startswith("export ")]
+    text = " ".join(line.rstrip().rstrip("\\") for line in lines)
+    tokens = shlex.split(text)
+    assert tokens[:2] == ["mas", "install"], f"Unexpected command prefix: {tokens[:2]}"
+    flags = [token for token in tokens[2:] if token.startswith("--")]
+    duplicates = sorted({flag for flag in flags if flags.count(flag) > 1})
+    assert duplicates == [], f"buildCommand() emitted duplicate flags: {duplicates}"
+    return installArgParser.parse_args(tokens[2:])
+
+
+def test_install_interactive_custom_cluster_issuer_round_trip(tmpdir):
+    """Test that a custom certificate issuer can be chosen interactively and survives buildCommand().
+
+    GIVEN an advanced interactive install with a custom domain and no DNS integration
+    WHEN the user enters a custom certificate issuer name
+    THEN mas_cluster_issuer is set and the generated non-interactive command re-parses with
+        the same values and no duplicated flags.
+    """
+    prompts = _base_prompts(tmpdir)
+    prompts.update(
+        {
+            r".*Configure domain.*certificate management\?.*": lambda msg: "y",
+            ".*Configure custom domain.*": lambda msg: "y",
+            ".*MAS top-level domain.*": lambda msg: "mas.example.com",
+            ".*DNS Provider.*": lambda msg: "4",  # None (I will set up DNS myself)
+            ".*Custom certificate issuer name.*": lambda msg: "corporate-ca-issuer",
+            ".*Configure.*domain.*certificate management for AI Service.*": lambda msg: "n",
+        }
+    )
+
+    app = run_install_test(tmpdir, _config(prompts, tmpdir))
+
+    assert app.getParam("mas_cluster_issuer") == "corporate-ca-issuer"
+    assert app.getParam("dns_provider") == ""
+
+    args = _parseBuiltCommand(app.buildCommand())
+    assert args.mas_cluster_issuer == "corporate-ca-issuer"
+    assert args.mas_domain == "mas.example.com"
+    assert args.mas_instance_id == "inst1"
+    assert args.mas_channel == app.getParam("mas_channel")
+    assert args.aiservice_channel == app.getParam("aiservice_channel")
+    if app.getParam("configure_aiassistant") != "":
+        assert args.configure_aiassistant == app.getParam("configure_aiassistant")
+
+
+def test_install_interactive_db2_storage_classes(tmpdir):
+    """Test that Db2 storage classes can be customized in advanced interactive mode.
+
+    GIVEN an advanced interactive install that installs a dedicated Db2 instance
+    WHEN the user customizes storage capacity and opts in to customizing the Db2 storage classes
+    THEN the db2_*_storage_class params are set and are emitted by buildCommand() in a re-parseable form.
+    """
+    prompts = _base_prompts(tmpdir)
+    storageClasses = {
+        "Data": "db2-data-sc",
+        "Temporary": "db2-temp-sc",
+        "Metadata": "db2-meta-sc",
+        "Transaction Logs": "db2-logs-sc",
+        "Backup": "db2-backup-sc",
+    }
+    prompts.update(
+        {
+            r".*Configure domain.*certificate management\?.*": lambda msg: "n",
+            ".*Configure.*domain.*certificate management for AI Service.*": lambda msg: "n",
+            ".*Customize storage capacity.*": lambda msg: "y",
+            r".*\+ Data Volume.*": lambda msg: "100Gi",
+            r".*\+ Temporary Volume.*": lambda msg: "10Gi",
+            r".*\+ Metadata Volume.*": lambda msg: "10Gi",
+            r".*\+ Transaction Logs Volume.*": lambda msg: "10Gi",
+            r".*\+ Backup Volume.*": lambda msg: "50Gi",
+            ".*Customize Db2 storage classes.*": lambda msg: "y",
+        }
+    )
+    # Domain & certificate management is skipped entirely, so the manual certificates prompt is never shown
+    prompts.pop(".*Configure manual certificates.*")
+    for label, storageClass in storageClasses.items():
+        prompts[rf".*\+ {label} Storage Class.*"] = lambda msg, sc=storageClass: sc
+
+    app = run_install_test(tmpdir, _config(prompts, tmpdir))
+
+    assert app.getParam("db2_data_storage_class") == "db2-data-sc"
+    assert app.getParam("db2_temp_storage_class") == "db2-temp-sc"
+    assert app.getParam("db2_meta_storage_class") == "db2-meta-sc"
+    assert app.getParam("db2_logs_storage_class") == "db2-logs-sc"
+    assert app.getParam("db2_backup_storage_class") == "db2-backup-sc"
+
+    args = _parseBuiltCommand(app.buildCommand())
+    assert args.db2_data_storage_class == "db2-data-sc"
+    assert args.db2_meta_storage_class == "db2-meta-sc"
+    assert args.db2_backup_storage_class == "db2-backup-sc"
+    assert args.db2_data_storage_size == "100Gi"

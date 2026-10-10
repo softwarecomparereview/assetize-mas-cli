@@ -1063,7 +1063,7 @@ class InstallApp(
 
                     if dnsIntegrationRestricted:
                         self.setParam("dns_provider", "")
-                        self.setParam("mas_cluster_issuer", "")
+                        self.promptForCustomClusterIssuer()
                     else:
                         self.printDescription(
                             [
@@ -1085,9 +1085,9 @@ class InstallApp(
                         elif dnsProvider == 3:
                             self.configDNSAndCertsRoute53(configMas=True, configAIService=False)
                         elif dnsProvider == 4:
-                            # Use MAS default self-signed cluster issuer with a custom domain
+                            # Use MAS default self-signed cluster issuer (or a custom one) with a custom domain
                             self.setParam("dns_provider", "")
-                            self.setParam("mas_cluster_issuer", "")
+                            self.promptForCustomClusterIssuer()
 
                         if dnsProvider in [1, 2]:
                             self.printDescription(
@@ -1099,10 +1099,10 @@ class InstallApp(
                             self.promptForString("Cluster Ingress Domain Override", "ocp_ingress")
 
                 else:
-                    # Use MAS default self-signed cluster issuer with the default domain
+                    # Use MAS default self-signed cluster issuer (or a custom one) with the default domain
                     self.setParam("dns_provider", "")
                     self.setParam("mas_domain", "")
-                    self.setParam("mas_cluster_issuer", "")
+                    self.promptForCustomClusterIssuer()
                 self.manualCerts = self.yesOrNo("Configure manual certificates")
                 self.setParam("mas_manual_cert_mgmt", str(self.manualCerts).lower())
                 if self.getParam("mas_manual_cert_mgmt").lower() == "true":
@@ -1112,6 +1112,21 @@ class InstallApp(
                     )
                 else:
                     self.manualCertsDir = None
+
+    @logMethodCall
+    def promptForCustomClusterIssuer(self) -> None:
+        """
+        Optionally use an existing certificate issuer (e.g. a corporate CA ClusterIssuer) instead of the MAS default self-signed issuer.
+        Equivalent to --mas-cluster-issuer in non-interactive mode.
+        """
+        self.printDescription(
+            [
+                "",
+                "By default MAS will use a self-signed certificate issuer. If you have already set up a cert-manager issuer that you want MAS to use",
+                "(for example one backed by your corporate certificate authority) enter its name below, otherwise leave the response empty",
+            ]
+        )
+        self.promptForString("Custom certificate issuer name", "mas_cluster_issuer", default="")
 
     @logMethodCall
     def _buildCertIssuerName(self, instanceId: str, provider: str, certIssuer: int) -> str:
@@ -1359,6 +1374,14 @@ class InstallApp(
     def configAppChannel(self, appId):
         versions = self.getCompatibleVersions(self.params["mas_channel"], appId)
         if len(versions) == 0:
+            if self.params["mas_channel"] in self.compatibilityMatrix:
+                # The core channel is known, but this application has no known compatible channel for it
+                self.printDescription(
+                    [
+                        f"<Yellow>No compatible {appId} channel is known for MAS core channel {self.params['mas_channel']}.</Yellow>",
+                        "Provide a custom channel only if you have confirmed this combination is supported.",
+                    ]
+                )
             self.promptForString(
                 f"Custom channel for {appId}",
                 f"mas_app_channel_{appId}",
@@ -1382,19 +1405,23 @@ class InstallApp(
         )
 
         defaultStorageClasses = getDefaultStorageClasses(self.dynamicClient)
+        # A storage class that the provider would normally use but which is not present in the cluster is reported as None
+        detectedRWO = (defaultStorageClasses.rwo or "") if defaultStorageClasses.provider is not None else ""
+        detectedRWX = (defaultStorageClasses.rwx or "") if defaultStorageClasses.provider is not None else ""
         if defaultStorageClasses.provider is not None:
+            notDetected = "<Yellow>not detected</Yellow>"
             print_formatted_text(HTML(f"<MediumSeaGreen>Storage provider auto-detected: {defaultStorageClasses.providerName}</MediumSeaGreen>"))
-            print_formatted_text(HTML(f"<LightSlateGrey>  - Storage class (ReadWriteOnce): {defaultStorageClasses.rwo}</LightSlateGrey>"))
-            print_formatted_text(HTML(f"<LightSlateGrey>  - Storage class (ReadWriteMany): {defaultStorageClasses.rwx}</LightSlateGrey>"))
+            print_formatted_text(HTML(f"<LightSlateGrey>  - Storage class (ReadWriteOnce): {detectedRWO or notDetected}</LightSlateGrey>"))
+            print_formatted_text(HTML(f"<LightSlateGrey>  - Storage class (ReadWriteMany): {detectedRWX or notDetected}</LightSlateGrey>"))
             self.storageClassProvider = defaultStorageClasses.provider
-            self.params["storage_class_rwo"] = defaultStorageClasses.rwo
-            self.params["storage_class_rwx"] = defaultStorageClasses.rwx
+            self.params["storage_class_rwo"] = detectedRWO
+            self.params["storage_class_rwx"] = detectedRWX
 
         overrideStorageClasses = False
-        if "storage_class_rwx" in self.params and self.params["storage_class_rwx"] != "":
+        if detectedRWO != "" and detectedRWX != "":
             overrideStorageClasses = not self.yesOrNo("Use the auto-detected storage classes")
 
-        if "storage_class_rwx" not in self.params or self.params["storage_class_rwx"] == "" or overrideStorageClasses:
+        if detectedRWO == "" or detectedRWX == "" or overrideStorageClasses:
             self.storageClassProvider = "custom"
 
             self.printDescription(
@@ -1406,16 +1433,19 @@ class InstallApp(
             for storageClass in getStorageClasses(self.dynamicClient):
                 print_formatted_text(HTML(f"<LightSlateGrey>  - {storageClass.metadata.name}</LightSlateGrey>"))
 
-            self.params["storage_class_rwo"] = prompt(
-                HTML("<Yellow>ReadWriteOnce (RWO) storage class</Yellow> "),
-                validator=StorageClassValidator(),
-                validate_while_typing=False,
-            )
-            self.params["storage_class_rwx"] = prompt(
-                HTML("<Yellow>ReadWriteMany (RWX) storage class</Yellow> "),
-                validator=StorageClassValidator(),
-                validate_while_typing=False,
-            )
+            # Only prompt for the classes that were not auto-detected (or both, if the user chose not to use the auto-detected classes)
+            if detectedRWO == "" or overrideStorageClasses:
+                self.params["storage_class_rwo"] = prompt(
+                    HTML("<Yellow>ReadWriteOnce (RWO) storage class</Yellow> "),
+                    validator=StorageClassValidator(),
+                    validate_while_typing=False,
+                )
+            if detectedRWX == "" or overrideStorageClasses:
+                self.params["storage_class_rwx"] = prompt(
+                    HTML("<Yellow>ReadWriteMany (RWX) storage class</Yellow> "),
+                    validator=StorageClassValidator(),
+                    validate_while_typing=False,
+                )
 
         # Configure storage class for pipeline PVC
         # We prefer to use ReadWriteMany, but we can cope with ReadWriteOnce if necessary
@@ -1607,7 +1637,9 @@ class InstallApp(
                 self.printDescription(["Real Estate and Facilities Persistent Volume Storage Configuration"])
                 defaultStorageClasses = getDefaultStorageClasses(self.dynamicClient)
                 notUseAutodetectedStorageClasses = False
-                if defaultStorageClasses.provider is not None:
+                # Only offer the auto-detected classes when both are actually present in the cluster (None means not found)
+                autodetectedAvailable = defaultStorageClasses.provider is not None and bool(defaultStorageClasses.rwo) and bool(defaultStorageClasses.rwx)
+                if autodetectedAvailable:
                     self.storageClassProvider = defaultStorageClasses.provider
                     print_formatted_text(HTML(f"<MediumSeaGreen>Storage provider auto-detected: {defaultStorageClasses.providerName}</MediumSeaGreen>"))
                     print_formatted_text(HTML(f"<LightSlateGrey>  - Storage class (ReadWriteMany): {defaultStorageClasses.rwx}</LightSlateGrey>"))
@@ -1666,7 +1698,7 @@ class InstallApp(
                         )
                     else:
                         notUseAutodetectedStorageClasses = True
-                if defaultStorageClasses.provider is None or notUseAutodetectedStorageClasses:
+                if not autodetectedAvailable or notUseAutodetectedStorageClasses:
                     for storageClass in getStorageClasses(self.dynamicClient):
                         print_formatted_text(HTML(f"<LightSlateGrey>  - {storageClass.metadata.name}</LightSlateGrey>"))
                     self.promptForString(
@@ -2240,6 +2272,11 @@ class InstallApp(
         for key, value in vars(self.args).items():
             # These fields we just pass straight through to the parameters and fail if they are not set
             if key in requiredParams:
+                if value is None and key in ["storage_class_rwo", "storage_class_rwx"]:
+                    self.fatalError(
+                        f"--{key.replace('_', '-')} must be set (storage classes are not auto-detected in non-interactive mode; "
+                        "use 'none' for --storage-class-rwx if no ReadWriteMany storage class is available)"
+                    )
                 if value is None:
                     self.fatalError(f"{key} must be set")
 
@@ -2886,6 +2923,7 @@ class InstallApp(
             self.nonInteractiveMode()
 
         # After we've configured the basic inputs, we can calculate these ones
+        self.normalizeDb2StorageAccessModes()
         self.setIoTStorageClasses()
         self.setMonitorInstallOrder()
         if self.deployCP4D:
@@ -3099,7 +3137,7 @@ class InstallApp(
                     )
                 else:
                     h.stop_and_persist(
-                        symbol=self.successIcon,
+                        symbol=self.failureIcon,
                         text="OpenShift Pipelines Operator installation failed",
                     )
                     self.fatalError("Installation failed")
@@ -3240,3 +3278,18 @@ class InstallApp(
                 # Disable this approval workload
                 logger.debug(f"Approval workflow for {approval['id']} will be disabled during install")
                 self.initializeApprovalConfigMap(namespace, approval["id"], False)
+
+        self.resetSyncInstallConfigMap(namespace)
+
+    @logMethodCall
+    def resetSyncInstallConfigMap(self, namespace: str) -> None:
+        """
+        The install pipeline records its final status in the sync-install ConfigMap, which other pipelines (e.g. FVT) wait on.
+        Remove any status left over from a previous install run so that a stale "Failed" (or "Succeeded") is not picked up.
+        """
+        cmAPI = self.dynamicClient.resources.get(api_version="v1", kind="ConfigMap")
+        try:
+            logger.debug(f"Deleting any existing sync-install configmap in {namespace}")
+            cmAPI.delete(name="sync-install", namespace=namespace)
+        except NotFoundError:
+            pass

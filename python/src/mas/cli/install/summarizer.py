@@ -500,6 +500,9 @@ class InstallSummarizerMixin:
             self.printParamSummary("Backup Storage", "db2_backup_storage_size")
             self.printParamSummary("Temp Storage", "db2_temp_storage_size")
             self.printParamSummary("Transaction Logs Storage", "db2_logs_storage_size")
+            for volume, label in [("meta", "Meta"), ("data", "Data"), ("backup", "Backup"), ("temp", "Temp"), ("logs", "Transaction Logs")]:
+                if self.getParam(f"db2_{volume}_storage_class") != "":
+                    self.printParamSummary(f"{label} Storage Class", f"db2_{volume}_storage_class")
             print()
             if self.getParam("db2_affinity_key") != "":
                 self.printSummary(
