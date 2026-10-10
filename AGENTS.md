@@ -112,8 +112,9 @@ mirroring, gitops and debug commands.
 | `pre-install` | `pre_install/app.py` (per-app pre-install RBAC) | — |
 | `aiservice-install` / `aiservice-upgrade` | `aiservice/install|upgrade/app.py` | `aiservice-<id>-pipelines` |
 
-Each command has `<cmd>/argParser.py` (argparse). `usage()` in `__main__.py` does not
-list `restore`, `aiservice-install`, `aiservice-upgrade`.
+Each command has its own argparse parser in `<cmd>/argParser.py` (`must_gather/arg_parser.py`
+for must-gather). `usage()` in `__main__.py` lists every command (checked by
+`tests/integration/test_help.py`).
 
 ### 4.2 `BaseApp` (`cli.py`)
 - Mixes in `PrintMixin` / `PromptMixin` (`displayMixins.py`): `printH1/H2`,
@@ -262,8 +263,7 @@ probably in `mas.devops`.
 
 - Versioning: commit/PR title prefix **`[major]` / `[minor]` / `[patch]`** (and
   `[skip ci]`, `[doc]` to deploy docs). `build/bin/initbuild.sh` computes semver;
-  branch builds are `x.y.z-pre.<branch>`. (`build/README.md` still mentions Travis;
-  CI is GitHub Actions.)
+  branch builds are `x.y.z-pre.<branch>`. CI is GitHub Actions.
 - Workflows: `build-cli.yml` (tekton → python lint/test/build → per-arch image build
   with OpenSCAP scan → quay.io push → multi-arch manifest → PyPI on release),
   `docs.yml`, `pre-commit.yml`, `tekton-validation.yml`, `tekton-cleanup.yml`,
@@ -282,7 +282,7 @@ probably in `mas.devops`.
 # Python
 python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # pulls mas-devops from PyPI
 .venv/bin/pytest python/tests              # all
-.venv/bin/pytest -m unit                   # or: integration, install, update, upgrade, mirror, must-gather
+.venv/bin/pytest -m unit                   # or: integration, install, update, upgrade, backup, restore, mirror, must-gather
 # Tekton
 make tekton                                # renders + schema-tests (needs ansible)
 # Lint (also enforced by pre-commit)
@@ -293,11 +293,15 @@ make mkdocs-serve                          # expects ../python-devops checked ou
 podman run -ti --rm -e IBM_ENTITLEMENT_KEY quay.io/ibmmas/cli:latest bash
 ```
 
+- `BaseApp` exits if `kubectl` is not on `PATH`, so tests need one even without a cluster; a stub
+  is enough (`printf '#!/bin/sh\n' > .venv/bin/kubectl && chmod +x .venv/bin/kubectl`, then run
+  with `.venv/bin` on `PATH`). Tests import `mas.devops`; install python-devops editable
+  (`pip install -e ../python-devops`) when working across repos.
 - Integration tests drive the real apps with prompts scripted by
   `tests/integration/utils/prompt_tracker.py` (`PromptTracker` regex → answer, asserts
   every handler fired) and mock k8s + `mas.devops` launch functions
-  (`install_test_helper.py`). No tests exist for backup, restore, uninstall,
-  setup-rbac, pre-install.
+  (`install_test_helper.py`; backup/restore use `backup_restore_test_helper.py`).
+  No tests exist yet for uninstall, setup-rbac, pre-install.
 - detect-secrets uses IBM's fork with `--fail-on-unaudited`; any new secret-looking
   string must be added/audited in `.secrets.baseline`.
 
