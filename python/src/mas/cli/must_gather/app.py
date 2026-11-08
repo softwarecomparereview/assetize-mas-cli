@@ -113,7 +113,7 @@ class MustGatherApp(BaseApp):
         print(f"📁 Must-gather directory: {outputDir}\n")
 
         # Generate summaries
-        if self.generateSummary(outputDir):
+        if self.generateSummary(outputDir, summaryFormat=getattr(parsedArgs, "summary_format", "md")):
             print("\n✅ Successfully regenerated all summaries")
             return 0
         else:
@@ -207,7 +207,7 @@ class MustGatherApp(BaseApp):
 
         # Generate summaries (always run, individual summarizers check their own requirements)
         print()  # Add newline before summary generation
-        self.generateSummary(outputDir=outputManager.outputDir)
+        self.generateSummary(outputDir=outputManager.outputDir, summaryFormat=getattr(parsedArgs, "summary_format", "md"))
 
         # Generate web viewer
         print()  # Add newline before web viewer generation
@@ -549,7 +549,7 @@ class MustGatherApp(BaseApp):
             result = executeCollection(plan=plan, maxWorkers=50, displayCallback=displayCallback)
             return result
 
-    def generateSummary(self, outputDir: str) -> bool:
+    def generateSummary(self, outputDir: str, summaryFormat: str = "md") -> bool:
         """Generate all must-gather summaries.
 
         Runs all available summarizers to generate summary reports from
@@ -557,6 +557,7 @@ class MustGatherApp(BaseApp):
 
         Args:
             outputDir (str): Base output directory for must-gather
+            summaryFormat (str): Summary file format, one of md, txt, both (default: md)
 
         Returns:
             bool: True if all summaries generated successfully, False otherwise
@@ -579,7 +580,33 @@ class MustGatherApp(BaseApp):
         if not self._generateLicensingSummary(outputDir):
             success = False
 
+        # Write plain-text summaries if requested
+        if summaryFormat != "md" and not self._applySummaryFormat(outputDir, summaryFormat):
+            success = False
+
         return success
+
+    def _applySummaryFormat(self, outputDir: str, summaryFormat: str) -> bool:
+        """Write plain-text versions of the generated summaries.
+
+        Args:
+            outputDir (str): Base output directory for must-gather
+            summaryFormat (str): Summary file format, txt or both
+
+        Returns:
+            bool: True if the conversion succeeded, False otherwise
+        """
+        try:
+            from .summarizer import text_format
+
+            written = text_format.applySummaryFormat(outputDir, summaryFormat)
+            print(f"{self.successIcon} Plain-text summaries generated ({len(written)} files)")
+            logger.info(f"✅ Generated {len(written)} plain-text summaries")
+            return True
+        except Exception as e:
+            print(f"❌  Error generating plain-text summaries: {e}")
+            logger.error(f"❌ Error generating plain-text summaries: {e}")
+            return False
 
     def _generateSubscriptionsSummary(self, outputDir: str) -> bool:
         """Generate cluster-wide subscriptions summary.

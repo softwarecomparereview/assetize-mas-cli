@@ -120,11 +120,14 @@ Collect data for all MAS instances, critical cluster resources, and most MAS dep
 uvx mas-cli must-gather -d /mnt/home/must-gather
 ```
 
-### Include Secret Data
-By default secret data is not included in the must-gather archive, only the existence of the secret is recorded and how many fields it contains. Adding the `--secret-data` flag will trigger the inclusion of the secret data as well.
+### Secret Data
+Secret values are not included in the must-gather archive. For each secret only its metadata (name, namespace, type, labels, annotations, etc) is recorded: the `data` and `stringData` fields are always removed, as is the `kubectl.kubernetes.io/last-applied-configuration` annotation, which can contain a copy of the secret's data. Other annotations are kept as they are, so if your organisation stores sensitive values in custom secret annotations, review the collected `secrets` folders before sharing the archive. The `--secret-data` option provided by earlier versions of the must-gather is no longer supported.
+
+### Plain-Text Summaries
+By default the summary reports (`summaries/*.md` and `resources/_cluster/subscriptions.md`) are written as Markdown. Use `--summary-format txt` to write them as plain text instead (Markdown tables are converted to aligned text tables), or `--summary-format both` to write both, for support tools that cannot render Markdown.
 
 ```bash
-uvx mas-cli must-gather -d /mnt/home/must-gather --secret-data
+uvx mas-cli must-gather -d /mnt/home/must-gather --summary-format both
 ```
 
 ### Quick Collection

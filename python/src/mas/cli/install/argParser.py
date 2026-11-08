@@ -96,6 +96,7 @@ masArgGroup.add_argument("--mas-channel", required=False, help="Subscription cha
 masArgGroup.add_argument("--aiservice-instance-id", required=False, help="AI Service Instance ID")
 masArgGroup.add_argument(
     "--configure-ai-assistant",
+    "--configure-aiassistant",  # Alias: spelling emitted by buildCommand() in earlier releases
     dest="configure_aiassistant",
     required=False,
     help="Configure AI Assistant in silent mode (for example: pipeline, configure, none)",
@@ -1393,6 +1394,20 @@ db2ArgGroup.add_argument(
     required=False,
     help="Db2 temporary storage capacity",
 )
+for db2Volume, db2VolumeDesc in [("meta", "metadata"), ("data", "data"), ("backup", "backup"), ("logs", "transaction logs"), ("temp", "temporary")]:
+    db2ArgGroup.add_argument(
+        f"--db2-{db2Volume}-storage-class",
+        dest=f"db2_{db2Volume}_storage_class",
+        required=False,
+        help=f"Storage class for the Db2 {db2VolumeDesc} volume (defaults to the RWO/RWX storage class)",
+    )
+    db2ArgGroup.add_argument(
+        f"--db2-{db2Volume}-storage-accessmode",
+        dest=f"db2_{db2Volume}_storage_accessmode",
+        required=False,
+        choices=["ReadWriteOnce", "ReadWriteMany"],
+        help=f"Access mode for the Db2 {db2VolumeDesc} volume",
+    )
 db2ArgGroup.add_argument(
     "--db2u-kind",
     dest="db2u_kind",

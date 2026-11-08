@@ -21,6 +21,17 @@ if TYPE_CHECKING:
     from prompt_toolkit.validation import Validator
 
 
+# Db2 volumes that support a dedicated storage class / access mode, and the role default access mode for each
+DB2_STORAGE_VOLUMES = [("data", "Data"), ("temp", "Temporary"), ("meta", "Metadata"), ("logs", "Transaction Logs"), ("backup", "Backup")]
+DB2_DEFAULT_ACCESS_MODES = {
+    "data": "ReadWriteOnce",
+    "temp": "ReadWriteOnce",
+    "meta": "ReadWriteMany",
+    "logs": "ReadWriteOnce",
+    "backup": "ReadWriteMany",
+}
+
+
 class Db2SettingsMixin:
     if TYPE_CHECKING:
         # Attributes from BaseApp and other mixins
@@ -316,6 +327,19 @@ class Db2SettingsMixin:
                     self.promptForString(" + Transaction Logs Volume", "db2_logs_storage_size", default=self.getParam("db2_logs_storage_size"))
                     self.promptForString(" + Backup Volume", "db2_backup_storage_size", default=self.getParam("db2_backup_storage_size"))
 
+                    self.printDescription(
+                        [
+                            "",
+                            "By default the Db2 data, temporary and transaction log volumes use the ReadWriteOnce storage class,",
+                            "and the metadata and backup volumes use the ReadWriteMany storage class.",
+                        ]
+                    )
+                    if self.yesOrNo("Customize Db2 storage classes"):
+                        for volume, label in DB2_STORAGE_VOLUMES:
+                            self.promptForString(
+                                f" + {label} Storage Class", f"db2_{volume}_storage_class", default=self.getParam(f"db2_{volume}_storage_class")
+                            )
+
                 if self.devMode:
                     if self.yesOrNo("Select Db2 Custom Resource(CR)"):
                         self.printDescription(["Db2 Custom Resource", "  1. Db2uCluster", "  2. Db2uInstance"])
@@ -374,3 +398,14 @@ class Db2SettingsMixin:
             self.setParam("db2_logs_storage_size", "10Gi")
             self.setParam("db2_temp_storage_size", "10Gi")
             self.setParam("db2_data_storage_size", "50Gi")
+
+    def normalizeDb2StorageAccessModes(self) -> None:
+        """
+        The PipelineRun only passes the Db2 access mode overrides through when db2_meta_storage_accessmode is set, so if any
+        access mode has been customized fill in the remaining blanks with the same defaults the db2 role would apply.
+        """
+        accessModeParams = [f"db2_{volume}_storage_accessmode" for volume in DB2_DEFAULT_ACCESS_MODES]
+        if any(self.getParam(param) != "" for param in accessModeParams):
+            for volume, defaultMode in DB2_DEFAULT_ACCESS_MODES.items():
+                if self.getParam(f"db2_{volume}_storage_accessmode") == "":
+                    self.setParam(f"db2_{volume}_storage_accessmode", defaultMode)

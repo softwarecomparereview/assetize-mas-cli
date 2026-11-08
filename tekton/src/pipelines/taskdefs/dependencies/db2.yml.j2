@@ -91,16 +91,21 @@
       value: $(params.db2_data_storage_size)
 
     # Storage - Class
+    # Db2-specific classes are optional; any left empty fall back to the RWO/RWX defaults in the db2 role
     - name: db2_meta_storage_class
-      value: $(params.storage_class_rwx)
+      value: $(params.db2_meta_storage_class)
     - name: db2_data_storage_class
-      value: $(params.storage_class_rwo)
+      value: $(params.db2_data_storage_class)
     - name: db2_backup_storage_class
-      value: $(params.storage_class_rwx)
+      value: $(params.db2_backup_storage_class)
     - name: db2_logs_storage_class
-      value: $(params.storage_class_rwo)
+      value: $(params.db2_logs_storage_class)
     - name: db2_temp_storage_class
+      value: $(params.db2_temp_storage_class)
+    - name: db2_default_storage_class_rwo
       value: $(params.storage_class_rwo)
+    - name: db2_default_storage_class_rwx
+      value: $(params.storage_class_rwx)
 
     # Storage - Access mode
     - name: db2_meta_storage_accessmode

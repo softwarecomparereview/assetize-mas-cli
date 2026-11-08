@@ -116,6 +116,14 @@ depsArgGroup.add_argument(
 )
 
 depsArgGroup.add_argument(
+    "--db2u-kind",
+    dest="db2u_kind",
+    required=False,
+    choices=["db2ucluster", "db2uinstance"],
+    help="Db2u custom resource kind of the existing Db2 deployment (auto-detected from the cluster when not set)",
+)
+
+depsArgGroup.add_argument(
     "--db2-license-file",
     required=False,
     help="Path to a valid Db2 v12 activation license file required for Db2 v11 to v12 upgrades",

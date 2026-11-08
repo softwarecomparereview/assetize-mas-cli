@@ -22,12 +22,14 @@ usage: mas restore [-i MAS_INSTANCE_ID] [--restore-version RESTORE_VERSION]
                    [--contact-firstname DRO_CONTACT_FIRSTNAME] [--contact-lastname DRO_CONTACT_LASTNAME]
                    [--dro-namespace DRO_NAMESPACE] [--override-mongodb-storageclass] [--mongodb-storageclass-name MONGODB_STORAGECLASS_NAME]
                    [--restore-manage-app] [--restore-manage-include-pvc] [--restore-manage-exclude-pvc]
-                   [--restore-manage-db] [--override-manage-app-storageclass]
+                   [--restore-manage-db] [--manage-workspace-id MANAGE_WORKSPACE_ID] [--manage-db2-dbname MANAGE_DB2_DBNAME]
+                   [--override-manage-app-storageclass]
                    [--manage-app-storage-class-rwx MANAGE_APP_STORAGE_CLASS_RWX] [--manage-app-storage-class-rwo MANAGE_APP_STORAGE_CLASS_RWO]
                    [--override-manage-db-storageclass]
                    [--manage-db-storage-class-rwx MANAGE_DB_STORAGE_CLASS_RWX] [--manage-db-storage-class-rwo MANAGE_DB_STORAGE_CLASS_RWO]
                    [--restore-facilities-app] [--restore-facilities-include-pvc] [--restore-facilities-exclude-pvc]
-                   [--restore-facilities-db] [--override-facilities-app-storageclass]
+                   [--restore-facilities-db] [--facilities-workspace-id FACILITIES_WORKSPACE_ID] [--facilities-db2-dbname FACILITIES_DB2_DBNAME]
+                   [--override-facilities-app-storageclass]
                    [--facilities-app-storage-class-rwx FACILITIES_APP_STORAGE_CLASS_RWX] [--facilities-app-storage-class-rwo FACILITIES_APP_STORAGE_CLASS_RWO]
                    [--override-facilities-db-storageclass]
                    [--facilities-db-storage-class-rwx FACILITIES_DB_STORAGE_CLASS_RWX] [--facilities-db-storage-class-rwo FACILITIES_DB_STORAGE_CLASS_RWO]
@@ -129,6 +131,11 @@ Manage Application Restore:
   --restore-manage-exclude-pvc
                         Exclude PVC restore for Manage application
   --restore-manage-db   Restore the Manage incluster Db2 database
+  --manage-workspace-id MANAGE_WORKSPACE_ID
+                        Manage workspace ID of the backup being restored, used to name the restored PVCs.
+                        If not specified, it is taken from the ManageWorkspace in the backup.
+  --manage-db2-dbname MANAGE_DB2_DBNAME
+                        Manage Db2 database name of the backup being restored. If not specified, it is taken from the backup (default: BLUDB).
   --override-manage-app-storageclass
                         Override storage class for Manage application persistent volumes
   --manage-app-storage-class-rwx MANAGE_APP_STORAGE_CLASS_RWX
@@ -151,6 +158,11 @@ Facilities Application Restore:
                         Exclude PVC restore for Facilities application
   --restore-facilities-db
                         Restore the Facilities incluster Db2 database
+  --facilities-workspace-id FACILITIES_WORKSPACE_ID
+                        Facilities workspace ID of the backup being restored, used to name the restored PVCs.
+                        If not specified, it is taken from the FacilitiesWorkspace in the backup.
+  --facilities-db2-dbname FACILITIES_DB2_DBNAME
+                        Facilities Db2 database name of the backup being restored. If not specified, it is taken from the backup (default: BLUDB).
   --override-facilities-app-storageclass
                         Override storage class for Facilities application persistent volumes
   --facilities-app-storage-class-rwx FACILITIES_APP_STORAGE_CLASS_RWX

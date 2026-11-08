@@ -13,11 +13,11 @@ usage: mas backup [-i MAS_INSTANCE_ID] [--backup-version BACKUP_VERSION]
                   [--aws-secret-access-key AWS_SECRET_ACCESS_KEY] [--s3-bucket-name S3_BUCKET_NAME] [--s3-region S3_REGION]
                   [--artifactory-url ARTIFACTORY_URL] [--artifactory-repository ARTIFACTORY_REPOSITORY]
                   [--backup-manage-app] [--backup-manage-include-pvc] [--backup-manage-exclude-pvc] [--manage-workspace-id MANAGE_WORKSPACE_ID] [--backup-manage-db]
-                  [--manage-db2-namespace MANAGE_DB2_NAMESPACE] [--manage-db2-instance-name MANAGE_DB2_INSTANCE_NAME]
+                  [--manage-db2-namespace MANAGE_DB2_NAMESPACE] [--manage-db2-instance-name MANAGE_DB2_INSTANCE_NAME] [--manage-db2-dbname MANAGE_DB2_DBNAME]
                   [--manage-db2-backup-type {offline,online}]
                   [--backup-facilities-app] [--backup-facilities-include-pvc] [--backup-facilities-exclude-pvc]
                   [--facilities-workspace-id FACILITIES_WORKSPACE_ID] [--backup-facilities-db]
-                  [--facilities-db2-namespace FACILITIES_DB2_NAMESPACE] [--facilities-db2-instance-name FACILITIES_DB2_INSTANCE_NAME]
+                  [--facilities-db2-namespace FACILITIES_DB2_NAMESPACE] [--facilities-db2-instance-name FACILITIES_DB2_INSTANCE_NAME] [--facilities-db2-dbname FACILITIES_DB2_DBNAME]
                   [--facilities-db2-backup-type {offline,online}]
                   [--include-sls] [--exclude-sls] [--include-mongo] [--exclude-mongo]
                   [--mongodb-namespace MONGODB_NAMESPACE] [--mongodb-instance-name MONGODB_INSTANCE_NAME]
@@ -75,6 +75,8 @@ Manage Application Backup:
                         Manage Db2 namespace (default: db2u)
   --manage-db2-instance-name MANAGE_DB2_INSTANCE_NAME
                         Manage Db2 instance name
+  --manage-db2-dbname MANAGE_DB2_DBNAME
+                        Manage Db2 database name (default: BLUDB)
   --manage-db2-backup-type {offline,online}
                         Manage Db2 backup type: offline (database unavailable) or online (database remains available)
 
@@ -93,6 +95,8 @@ Facilities Application Backup:
                         Facilities Db2 namespace (default: db2u)
   --facilities-db2-instance-name FACILITIES_DB2_INSTANCE_NAME
                         Facilities Db2 instance name
+  --facilities-db2-dbname FACILITIES_DB2_DBNAME
+                        Facilities Db2 database name (default: BLUDB)
   --facilities-db2-backup-type {offline,online}
                         Facilities Db2 backup type: offline (database unavailable) or online (database remains available)
 

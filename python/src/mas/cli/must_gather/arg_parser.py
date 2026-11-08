@@ -14,6 +14,8 @@ import argparse
 import os
 from typing import Callable, Optional
 
+from .summarizer.text_format import SUMMARY_FORMATS
+
 
 class EnvDefault(argparse.Action):
     """Custom action to use environment variable as default if argument not provided."""
@@ -136,6 +138,12 @@ controlsGroup.add_argument(
     default=",".join(ALL_COLLECTORS),
     help=f"Comma-separated list of collectors to run (default: all)\nAvailable collectors: {', '.join(ALL_COLLECTORS)}",
 )
+controlsGroup.add_argument(
+    "--summary-format",
+    choices=SUMMARY_FORMATS,
+    default="md",
+    help="Format of the generated summary files: md (Markdown, default), txt (plain text) or both",
+)
 controlsGroup.add_argument("--no-logs", action="store_true", default=False, help="Skip collection of pod logs, greatly speeds up must-gather collection time")
 
 # MAS Content Controls group
@@ -189,6 +197,12 @@ serveParser.add_argument("--port", type=int, default=8000, help="Port for HTTP s
 # Summarize subcommand
 summarizeParser = subparsers.add_parser("summarize", help="Regenerate summaries for existing must-gather output", formatter_class=argparse.RawTextHelpFormatter)
 summarizeParser.add_argument("-d", "--dir", type=str, required=True, help="Path to must-gather output directory")
+summarizeParser.add_argument(
+    "--summary-format",
+    choices=SUMMARY_FORMATS,
+    default="md",
+    help="Format of the generated summary files: md (Markdown, default), txt (plain text) or both",
+)
 
 # Wrap parse_args to apply environment variable defaults at parse time
 _original_parse_args = mustGatherArgParser.parse_args

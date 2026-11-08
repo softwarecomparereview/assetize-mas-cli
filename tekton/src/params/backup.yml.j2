@@ -274,7 +274,7 @@
 
 - name: manage_workspace_id
   type: string
-  description: Manage workspace ID for application backup
+  description: Manage workspace ID for application backup/restore (on restore, empty derives it from the workspace CR in the backup)
   default: ""
 
 - name: manage_app_override_storageclass
@@ -303,6 +303,11 @@
 - name: manage_db2_instance_name
   type: string
   description: Manage Db2 instance name for backup
+  default: ""
+
+- name: manage_db2_dbname
+  type: string
+  description: Manage Db2 database name for backup/restore (empty uses the role default BLUDB on backup, and the name recorded in the backup on restore)
   default: ""
 
 - name: manage_db2_backup_type
@@ -389,7 +394,7 @@
 
 - name: facilities_workspace_id
   type: string
-  description: Facilities workspace ID for application backup
+  description: Facilities workspace ID for application backup/restore (on restore, empty derives it from the workspace CR in the backup)
   default: ""
 
 - name: facilities_app_override_storageclass
@@ -418,6 +423,11 @@
 - name: facilities_db2_instance_name
   type: string
   description: Facilities Db2 instance name for backup
+  default: ""
+
+- name: facilities_db2_dbname
+  type: string
+  description: Facilities Db2 database name for backup/restore (empty uses the role default BLUDB on backup, and the name recorded in the backup on restore)
   default: ""
 
 - name: facilities_db2_backup_type

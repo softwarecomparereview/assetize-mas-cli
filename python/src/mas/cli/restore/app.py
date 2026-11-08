@@ -89,6 +89,8 @@ class RestoreApp(BaseApp):
                 "restore_manage_app",
                 "restore_manage_include_pvc",
                 "restore_manage_db",
+                "manage_workspace_id",
+                "manage_db2_dbname",
                 "manage_app_override_storageclass",
                 "manage_app_storage_class_rwx",
                 "manage_app_storage_class_rwo",
@@ -99,6 +101,8 @@ class RestoreApp(BaseApp):
                 "restore_facilities_app",
                 "restore_facilities_include_pvc",
                 "restore_facilities_db",
+                "facilities_workspace_id",
+                "facilities_db2_dbname",
                 "facilities_app_override_storageclass",
                 "facilities_app_storage_class_rwx",
                 "facilities_app_storage_class_rwo",
@@ -257,13 +261,19 @@ class RestoreApp(BaseApp):
             self.printH2("Manage Application Restore")
             self.printSummary("Restore Manage App", "Yes")
             self.printSummary("Include PVC Restore", "Yes" if self.getParam("restore_manage_include_pvc") == "true" else "No")
+            self.printSummary("Workspace ID", self.getParam("manage_workspace_id") if self.getParam("manage_workspace_id") else "(from backup)")
             self.printSummary("Restore Manage incluster Db2 Database", "Yes" if self.getParam("restore_manage_db") == "true" else "No")
+            if self.getParam("restore_manage_db") == "true":
+                self.printSummary("Db2 Database Name", self.getParam("manage_db2_dbname") if self.getParam("manage_db2_dbname") else "(from backup)")
 
         if self.getParam("restore_facilities_app") == "true":
             self.printH2("Facilities Application Restore")
             self.printSummary("Restore Facilities App", "Yes")
             self.printSummary("Include PVC Restore", "Yes" if self.getParam("restore_facilities_include_pvc") == "true" else "No")
+            self.printSummary("Workspace ID", self.getParam("facilities_workspace_id") if self.getParam("facilities_workspace_id") else "(from backup)")
             self.printSummary("Restore Facilities incluster Db2 Database", "Yes" if self.getParam("restore_facilities_db") == "true" else "No")
+            if self.getParam("restore_facilities_db") == "true":
+                self.printSummary("Db2 Database Name", self.getParam("facilities_db2_dbname") if self.getParam("facilities_db2_dbname") else "(from backup)")
 
         if self.getParam("sls_domain") is not None and self.getParam("sls_domain") != "":
             self.printH2("SLS Configuration")
@@ -662,6 +672,8 @@ class RestoreApp(BaseApp):
         if restoreManageApp:
             self.setParam("restore_manage_app", "true")
 
+            self.promptForAppWorkspaceId("manage", "Manage")
+
             # Ask about PVC restore
             self.printH2("Manage PVC Restore")
             self.printDescription(
@@ -693,11 +705,40 @@ class RestoreApp(BaseApp):
             self.setParam("manage_db2_restore_vendor", "disk")
             if restoreDb2:
                 self.setParam("restore_manage_db", "true")
+                self.promptForAppDb2DbName("manage", "Manage")
             else:
                 self.setParam("restore_manage_db", "false")
         else:
             self.setParam("restore_manage_app", "false")
             self.setParam("restore_manage_db", "false")
+
+    def promptForAppWorkspaceId(self, appId: str, appName: str) -> None:
+        """Prompt for the workspace ID of the application being restored (optional)
+
+        The workspace ID is used to name the restored PVCs (<instanceId>-<workspaceId>-<pvcName>).
+        When left empty the restore pipeline derives it from the workspace CR stored in the backup.
+        """
+        self.printDescription(
+            [
+                f"- Enter the {appName} workspace ID of the backup being restored.",
+                "- Leave empty to use the workspace ID recorded in the backup.",
+            ]
+        )
+        workspaceId = self.promptForString(f"{appName} workspace ID")
+        if workspaceId:
+            self.setParam(f"{appId}_workspace_id", workspaceId)
+
+    def promptForAppDb2DbName(self, appId: str, appName: str) -> None:
+        """Prompt for the Db2 database name of the application being restored (optional)"""
+        self.printDescription(
+            [
+                f"- Enter the {appName} Db2 database name of the backup being restored.",
+                "- Leave empty to use the database name recorded in the backup (default: BLUDB).",
+            ]
+        )
+        db2DbName = self.promptForString(f"{appName} Db2 database name")
+        if db2DbName:
+            self.setParam(f"{appId}_db2_dbname", db2DbName)
 
     def configStorageClasses(self):
         self.printH1("Configure MAS Component's Storage Class during Restore")
@@ -860,6 +901,8 @@ class RestoreApp(BaseApp):
         if restoreFacilitiesApp:
             self.setParam("restore_facilities_app", "true")
 
+            self.promptForAppWorkspaceId("facilities", "Facilities")
+
             # Ask about PVC restore
             self.printH2("Facilities PVC Restore")
             self.printDescription(
@@ -891,6 +934,7 @@ class RestoreApp(BaseApp):
             self.setParam("facilities_db2_restore_vendor", "disk")
             if restoreDb2:
                 self.setParam("restore_facilities_db", "true")
+                self.promptForAppDb2DbName("facilities", "Facilities")
             else:
                 self.setParam("restore_facilities_db", "false")
         else:

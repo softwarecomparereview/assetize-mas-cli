@@ -8,9 +8,12 @@
 #
 # *****************************************************************************
 
-from typing import TYPE_CHECKING, Dict, List
+import logging
+from typing import TYPE_CHECKING, Any, Dict, List
 from os import path
-from prompt_toolkit import print_formatted_text
+from prompt_toolkit import print_formatted_text, HTML
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from prompt_toolkit.completion import WordCompleter
@@ -24,6 +27,7 @@ class MongoDbSettingsMixin:
         architecture: str | None
         showAdvancedOptions: bool
         localConfigDir: str | None
+        dynamicClient: Any
 
         # Methods from BaseApp
         def setParam(self, param: str, value: str) -> None: ...
@@ -68,6 +72,17 @@ class MongoDbSettingsMixin:
                 raise ValueError(f"Invalid mongodb_provider: {mongodb_provider}. Allowed: {valid_providers}")
             self.setParam("mongodb_provider", mongodb_provider)
 
+        if self.architecture != "s390x" and self.architecture != "ppc64le":
+            existingClusters = self.getExistingMongoDbClusters("mongoce")
+            if len(existingClusters) > 0:
+                print_formatted_text(
+                    HTML(
+                        f"<MediumSeaGreen>An existing MongoDb Community Edition cluster was found in the mongoce namespace ({', '.join(existingClusters)}).</MediumSeaGreen>\n"
+                        f"<LightSlateGrey>If you choose to use the MongoDb Community Edition Operator, the databases for this MAS instance "
+                        f"will be added to the existing cluster '{existingClusters[0]}', a new MongoDb cluster will not be created.</LightSlateGrey>"
+                    )
+                )
+
         if (self.architecture != "s390x" and self.architecture != "ppc64le") and self.yesOrNo(
             "Create MongoDb cluster using MongoDb Community Edition Operator"
         ):
@@ -96,3 +111,18 @@ class MongoDbSettingsMixin:
             else:
                 print_formatted_text(f"Expected file ({mongoCfgFile}) was not found, generating a valid system mongodb configuration file now ...")
                 self.generateMongoCfg(instanceId=instanceId, destination=mongoCfgFile)
+
+    def getExistingMongoDbClusters(self, namespace: str) -> List[str]:
+        """
+        Return the names of any MongoDBCommunity instances in the given namespace.
+        Any failure to look them up (CRD not installed, namespace missing, insufficient permissions) is treated as "none found".
+        """
+        try:
+            mongoAPI = self.dynamicClient.resources.get(api_version="mongodbcommunity.mongodb.com/v1", kind="MongoDBCommunity")
+            items = mongoAPI.get(namespace=namespace).to_dict().get("items", [])
+        except Exception as e:
+            logger.debug(f"Unable to look up existing MongoDBCommunity instances in {namespace}: {e}")
+            return []
+        if not isinstance(items, list):
+            return []
+        return [item["metadata"]["name"] for item in items if isinstance(item, dict) and "metadata" in item and "name" in item["metadata"]]

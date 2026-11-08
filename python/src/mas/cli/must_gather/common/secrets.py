@@ -19,6 +19,9 @@ from kubernetes.client import CoreV1Api
 
 logger = logging.getLogger(__name__)
 
+# kubectl apply stores the full applied object, including a Secret's data, in this annotation
+LAST_APPLIED_ANNOTATION = "kubectl.kubernetes.io/last-applied-configuration"
+
 
 def collectSecrets(
     coreV1: CoreV1Api,
@@ -109,10 +112,14 @@ def _writeYaml(secretDict: dict, outputFile: str) -> None:
         secretDict (dict): Secret dictionary to write
         outputFile (str): Path to output file
     """
-    # ALWAYS remove secret data
-    if "data" in secretDict:
-        secretDict = secretDict.copy()
-        secretDict.pop("data", None)
+    # ALWAYS remove secret data, including the copy kubectl keeps in the last-applied-configuration annotation
+    secretDict = secretDict.copy()
+    secretDict.pop("data", None)
+    secretDict.pop("stringData", None)
+    annotations = (secretDict.get("metadata") or {}).get("annotations") or {}
+    if LAST_APPLIED_ANNOTATION in annotations:
+        secretDict["metadata"] = dict(secretDict["metadata"])
+        secretDict["metadata"]["annotations"] = {key: value for key, value in annotations.items() if key != LAST_APPLIED_ANNOTATION}
 
     with open(outputFile, "w") as f:
         yaml.dump(secretDict, f, default_flow_style=False, sort_keys=False)

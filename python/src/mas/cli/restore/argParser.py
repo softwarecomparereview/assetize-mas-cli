@@ -197,6 +197,20 @@ manageAppArgGroup.add_argument(
     help="Override database (Db2) PVC storageclass",
 )
 
+manageAppArgGroup.add_argument(
+    "--manage-workspace-id",
+    dest="manage_workspace_id",
+    required=False,
+    help="Manage workspace ID of the backup being restored, used to name the restored PVCs. If not specified, it is taken from the ManageWorkspace in the backup.",
+)
+
+manageAppArgGroup.add_argument(
+    "--manage-db2-dbname",
+    dest="manage_db2_dbname",
+    required=False,
+    help="Manage Db2 database name of the backup being restored. If not specified, it is taken from the backup (default: BLUDB).",
+)
+
 manageAppArgGroup.add_argument("--manage-db-storage-class-rwo", required=False, dest="manage_db_storage_class_rwo", help="RWO Storage class for DB2 storage")
 
 manageAppArgGroup.add_argument("--manage-db-storage-class-rwx", required=False, dest="manage_db_storage_class_rwx", help="RWX Storage class for DB2 storage")
@@ -256,6 +270,20 @@ facilitiesAppArgGroup.add_argument(
     action="store_const",
     const="true",
     help="Override Facilities database (Db2) PVC storageclass",
+)
+
+facilitiesAppArgGroup.add_argument(
+    "--facilities-workspace-id",
+    dest="facilities_workspace_id",
+    required=False,
+    help="Facilities workspace ID of the backup being restored, used to name the restored PVCs. If not specified, it is taken from the FacilitiesWorkspace in the backup.",
+)
+
+facilitiesAppArgGroup.add_argument(
+    "--facilities-db2-dbname",
+    dest="facilities_db2_dbname",
+    required=False,
+    help="Facilities Db2 database name of the backup being restored. If not specified, it is taken from the backup (default: BLUDB).",
 )
 
 facilitiesAppArgGroup.add_argument(

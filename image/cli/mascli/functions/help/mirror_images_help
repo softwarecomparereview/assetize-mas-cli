@@ -45,7 +45,7 @@ Content Selection (Core Platform):
       --mirror-core                               Mirror images for IBM Maximo Application Suite Core
 
 Content Selection (Applications):
-      --mirror-assist                             Mirror images for IBM Maximo Assist
+      --mirror-assist                             Mirror images for IBM Maximo Assist (MAS 9.1 and earlier only)
       --mirror-iot                                Mirror images for IBM Maximo IoT
       --mirror-manage                             Mirror images for IBM Maximo Manage
       --mirror-icd                                Mirror image  for IBM Maximo IT (Separately entitled IBM Maximo Manage extension)
